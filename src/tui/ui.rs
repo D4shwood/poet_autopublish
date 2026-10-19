@@ -1,5 +1,7 @@
 use super::app::{App, Confirm, Item, Mode, Watching};
+use super::preview::Page;
 use super::writer::Editor;
+use super::writer::wrap;
 use crate::poem::Status;
 use crate::stats;
 use chrono::{Datelike, Local};
@@ -8,7 +10,6 @@ use ratatui::layout::{Constraint, Layout, Position, Rect};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Clear, Paragraph, Wrap};
-use ratatui_image::StatefulImage;
 use std::fs;
 use std::sync::atomic::Ordering;
 
@@ -53,6 +54,7 @@ pub fn draw(f: &mut Frame, app: &mut App) {
 
     match &app.mode {
         Mode::Stats => draw_stats(f, body, app),
+        Mode::Preview => draw_preview(f, body.union(log), app),
         Mode::Log { scroll } => {
             let s = *scroll;
             draw_log(f, body.union(log), app, s, true);
@@ -65,7 +67,7 @@ pub fn draw(f: &mut Frame, app: &mut App) {
             draw_right(f, right, app);
         }
     }
-    if !matches!(app.mode, Mode::Log { .. }) {
+    if !matches!(app.mode, Mode::Log { .. } | Mode::Preview) {
         draw_log(f, log, app, 0, false);
     }
 
@@ -84,7 +86,7 @@ pub fn draw(f: &mut Frame, app: &mut App) {
         }
         Mode::Search { .. } => "⏎ · ↑↓ · Esc".into(),
         Mode::History { .. } | Mode::Stats | Mode::Log { .. } => "↑↓ · Esc".into(),
-        Mode::Preview => "← → · Esc".into(),
+        Mode::Preview => app.t("preview_keys").into(),
         _ => match &app.flash {
             Some((m, _)) => m.clone(),
             None => app.t("keys_main").into(),
@@ -277,23 +279,6 @@ fn draw_right(f: &mut Frame, area: Rect, app: &mut App) {
                     .block(panel(title, false)),
                 view,
             );
-        }
-        Mode::Preview => {
-            let title = match &app.preview {
-                Some(p) => format!(
-                    "{} · {}/{}",
-                    p.pdf.file_name().unwrap_or_default().to_string_lossy(),
-                    p.page,
-                    p.pages
-                ),
-                None => String::new(),
-            };
-            let block = panel(&title, true);
-            let inner = block.inner(area);
-            f.render_widget(block, area);
-            if let Some(p) = &mut app.preview {
-                f.render_stateful_widget(StatefulImage::default(), inner, &mut p.image);
-            }
         }
         _ => draw_poem_list(f, area, app),
     }
@@ -620,4 +605,200 @@ fn draw_writer(f: &mut Frame, area: Rect, ed: &mut Editor, lang: crate::lang::La
     if !ed.confirm_sign && ed.message.is_none() {
         f.render_widget(Paragraph::new(keys), status);
     }
+}
+
+/// The text proof: a dark "sheet of paper" with the page laid out like the PDF.
+fn draw_preview(f: &mut Frame, area: Rect, app: &mut App) {
+    let lang = app.lang();
+    let Some(pv) = &mut app.preview else { return };
+    let width = area.width.saturating_sub(4).min(68);
+    let paper = Rect {
+        x: area.x + (area.width - width) / 2,
+        y: area.y,
+        width,
+        height: area.height,
+    };
+    let status = pv.status(lang);
+    let block = panel(&status, true);
+    let inner = block.inner(paper);
+    f.render_widget(block, paper);
+    // Page margins inside the sheet.
+    let content = Rect {
+        x: inner.x + 4,
+        y: inner.y + 1,
+        width: inner.width.saturating_sub(7),
+        height: inner.height.saturating_sub(3),
+    };
+    let w = content.width as usize;
+    let page_no = pv.page + 1;
+    let muted = Style::default().fg(MUTED);
+    let accent = Style::default().fg(ACCENT);
+
+    match &pv.pages[pv.page] {
+        Page::Cover {
+            series,
+            subtitle,
+            author,
+            meta,
+            epigraph,
+        } => {
+            let mut lines = vec![Line::from(""); (content.height / 3) as usize];
+            lines.push(Line::from(Span::styled(
+                series.clone(),
+                accent.add_modifier(Modifier::BOLD),
+            )));
+            lines.push(Line::from(""));
+            lines.push(Line::from(Span::styled(
+                subtitle.clone(),
+                Style::default().fg(FG),
+            )));
+            lines.push(Line::from(Span::styled(
+                author.clone(),
+                Style::default().fg(FG),
+            )));
+            lines.push(Line::from(""));
+            lines.push(Line::from(Span::styled(meta.clone(), muted)));
+            if !epigraph.is_empty() {
+                lines.push(Line::from(""));
+                lines.push(Line::from(""));
+                for l in epigraph {
+                    lines.push(Line::from(Span::styled(
+                        l.trim().to_string(),
+                        muted.add_modifier(Modifier::ITALIC),
+                    )));
+                }
+            }
+            f.render_widget(Paragraph::new(lines).style(base()), content);
+        }
+        Page::Colophon(text) => {
+            let mut lines = vec![Line::from(""); (content.height / 2) as usize];
+            for chunk in wrap(text, w) {
+                lines.push(Line::from(Span::styled(chunk.1.trim().to_string(), muted)).centered());
+            }
+            f.render_widget(Paragraph::new(lines).style(base()), content);
+        }
+        Page::Contents(entries) => {
+            let mut lines = vec![
+                Line::from(Span::styled(
+                    lang.t("contents"),
+                    Style::default().fg(FG).add_modifier(Modifier::BOLD),
+                )),
+                Line::from(""),
+            ];
+            for (text, heading, page) in entries {
+                let indent = if *heading { 0 } else { 2 };
+                let num = page.to_string();
+                let room = w.saturating_sub(indent + num.chars().count() + 2);
+                let label: String = text.chars().take(room).collect();
+                let dots =
+                    w.saturating_sub(indent + label.chars().count() + num.chars().count() + 2);
+                let leader = if *heading {
+                    " ".repeat(dots)
+                } else {
+                    " .".repeat(dots / 2) + &" ".repeat(dots % 2)
+                };
+                if *heading && lines.len() > 2 {
+                    lines.push(Line::from(""));
+                }
+                let style = if *heading {
+                    accent
+                } else {
+                    Style::default().fg(FG)
+                };
+                lines.push(Line::from(vec![
+                    Span::raw(" ".repeat(indent)),
+                    Span::styled(label, style),
+                    Span::styled(format!(" {leader} "), Style::default().fg(FAINT)),
+                    Span::styled(num, muted),
+                ]));
+            }
+            let max = lines.len().saturating_sub(content.height as usize);
+            pv.scroll = pv.scroll.min(max);
+            f.render_widget(
+                Paragraph::new(lines)
+                    .style(base())
+                    .scroll((pv.scroll as u16, 0)),
+                content,
+            );
+            page_number(f, inner, page_no);
+        }
+        Page::Poem {
+            title,
+            lines: body,
+            footer,
+        } => {
+            let mut lines = vec![
+                Line::from(Span::styled(
+                    title.clone(),
+                    accent.add_modifier(Modifier::BOLD),
+                )),
+                Line::from(Span::styled("* * *", accent)),
+                Line::from(""),
+            ];
+            for (lvl, text) in body {
+                if text.is_empty() {
+                    lines.push(Line::from(""));
+                    continue;
+                }
+                let indent = lvl * 4;
+                // Wrapped lines hang under the start of the line, like in the PDF.
+                for (i, (_, chunk)) in wrap(text, w.saturating_sub(indent + 2).max(10))
+                    .into_iter()
+                    .enumerate()
+                {
+                    let pad = if i == 0 { indent } else { indent + 2 };
+                    lines.push(Line::from(Span::styled(
+                        format!("{}{}", " ".repeat(pad), chunk.trim_end()),
+                        Style::default().fg(FG),
+                    )));
+                }
+            }
+            let max = lines.len().saturating_sub(content.height as usize);
+            pv.scroll = pv.scroll.min(max);
+            f.render_widget(
+                Paragraph::new(lines)
+                    .style(base())
+                    .scroll((pv.scroll as u16, 0)),
+                content,
+            );
+            if pv.scroll < max {
+                let r = Rect {
+                    x: content.x + content.width.saturating_sub(1),
+                    y: content.y + content.height.saturating_sub(1),
+                    width: 1,
+                    height: 1,
+                };
+                f.render_widget(
+                    Paragraph::new(Span::styled("↓", Style::default().fg(ACCENT))),
+                    r,
+                );
+            }
+            let foot = Rect {
+                x: content.x,
+                y: inner.y + inner.height.saturating_sub(2),
+                width: content.width,
+                height: 1,
+            };
+            f.render_widget(
+                Paragraph::new(Line::from(Span::styled(footer.clone(), muted)).right_aligned()),
+                foot,
+            );
+            page_number(f, inner, page_no);
+        }
+    }
+}
+
+fn page_number(f: &mut Frame, inner: Rect, n: usize) {
+    let r = Rect {
+        x: inner.x,
+        y: inner.y + inner.height.saturating_sub(1),
+        width: inner.width,
+        height: 1,
+    };
+    f.render_widget(
+        Paragraph::new(
+            Line::from(Span::styled(n.to_string(), Style::default().fg(FAINT))).centered(),
+        ),
+        r,
+    );
 }

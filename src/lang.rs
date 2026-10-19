@@ -183,9 +183,9 @@ impl Lang {
                 "1 start · 2 stop · 3 restart · 4 install · Esc back",
             ),
             "empty" => ("(boş)", "(empty)"),
-            "preview_fallback" => (
-                "Terminal görüntü desteklemiyor; PDF açıldı.",
-                "Terminal can't show images; opened the PDF.",
+            "preview_keys" => (
+                "← → sayfa · ↑ ↓ kaydır · Home/End baş/son · Esc geri",
+                "← → page · ↑ ↓ scroll · Home/End first/last · Esc back",
             ),
             "total" => ("Toplam", "Total"),
             "streak" => ("Seri (gün)", "Streak (days)"),

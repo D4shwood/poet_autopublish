@@ -5,12 +5,12 @@ use crate::config::{Config, log_path};
 use crate::history::{self, Snapshot};
 use crate::install;
 use crate::lang::Lang;
+use crate::latex::Ctx;
 use crate::poem::{Poem, Status};
 use crate::search::{self, Hit};
 use crate::watch::{self, Watcher};
 use anyhow::Result;
 use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-use ratatui_image::picker::Picker;
 use std::fs;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
@@ -88,7 +88,6 @@ pub struct App {
     build_pending: bool,
     pub watching: Watching,
     tui_watch: Option<Watcher>,
-    pub picker: Option<Picker>,
     pub preview: Option<Preview>,
     last_refresh: Instant,
     last_service_check: Instant,
@@ -99,7 +98,7 @@ pub struct App {
 }
 
 impl App {
-    pub fn new(cfg: Config, picker: Option<Picker>) -> Result<App> {
+    pub fn new(cfg: Config) -> Result<App> {
         let lib = build::library(&cfg, &cfg.poems_dir())?;
         let mut app = App {
             cfg,
@@ -114,7 +113,6 @@ impl App {
             build_pending: false,
             watching: Watching::Off,
             tui_watch: None,
-            picker,
             preview: None,
             last_refresh: Instant::now(),
             last_service_check: Instant::now() - Duration::from_secs(60),
@@ -321,37 +319,63 @@ impl App {
     fn open_pdf(&mut self) {
         match self.selected_pdf() {
             Some((p, _)) => {
-                let _ = Command::new("xdg-open")
+                // xdg-open may hand PDFs to a non-PDF app (e.g. a notes app), so
+                // the config can name the viewer.
+                let viewer = self.cfg.pdf_viewer.trim();
+                let viewer = if viewer.is_empty() {
+                    "xdg-open"
+                } else {
+                    viewer
+                };
+                let spawned = Command::new(viewer)
                     .arg(p)
                     .stdout(Stdio::null())
                     .stderr(Stdio::null())
                     .spawn();
+                if let Err(e) = spawned {
+                    self.say(format!("{viewer}: {e}"));
+                }
             }
             None => self.say(self.t("no_pdf")),
         }
     }
 
+    /// The text proof of the selection: a poem's page within its volume,
+    /// a whole volume, the book, or a lone draft/unsigned poem.
     fn open_preview(&mut self) {
-        let Some((pdf, title)) = self.selected_pdf() else {
-            self.say(self.t("no_pdf"));
-            return;
+        let revisions = build::State::load(&self.cfg.out_dir()).revisions();
+        let ctx = Ctx {
+            template: "",
+            series: &self.cfg.series,
+            author: &self.cfg.author,
+            lang: self.lib.lang,
+            revisions: &revisions,
         };
-        let Some(picker) = &self.picker else {
-            let _ = Command::new("xdg-open")
-                .arg(&pdf)
-                .stdout(Stdio::null())
-                .stderr(Stdio::null())
-                .spawn();
-            self.say(self.t("preview_fallback"));
-            return;
-        };
-        match Preview::open(picker, &pdf, title.as_deref()) {
-            Ok(p) => {
-                self.preview = Some(p);
-                self.mode = Mode::Preview;
+        let preview = if let Some(p) = self.selected_poem() {
+            match self
+                .lib
+                .weeks
+                .iter()
+                .find(|w| w.poems.iter().any(|q| q.file_name == p.file_name))
+            {
+                Some(w) => Preview::week(w, &ctx, Some(&p.file_name)),
+                None => Preview::single(p, &ctx),
             }
-            Err(e) => self.say(format!("{e:#}")),
-        }
+        } else {
+            match self.current_item() {
+                Item::Week(i) => Preview::week(&self.lib.weeks[i], &ctx, None),
+                Item::All if !self.lib.weeks.is_empty() => Preview::book(&self.lib.weeks, &ctx),
+                _ => match self.right_poems().first() {
+                    Some(p) => Preview::single(p, &ctx),
+                    None => {
+                        self.say(self.t("no_pdf"));
+                        return;
+                    }
+                },
+            }
+        };
+        self.preview = Some(preview);
+        self.mode = Mode::Preview;
     }
 
     // ---------------------------------------------------------------- input
@@ -439,25 +463,27 @@ impl App {
                 ),
                 _ => (Mode::Log { scroll }, Action::None),
             },
-            Mode::Preview => match k.code {
-                KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('p') => {
-                    self.preview = None;
-                    (Mode::Main, Action::None)
-                }
-                KeyCode::Left | KeyCode::Char('h') | KeyCode::PageUp => {
-                    if let (Some(p), Some(picker)) = (&mut self.preview, &self.picker) {
-                        let _ = p.turn(picker, -1);
+            Mode::Preview => {
+                if let Some(p) = &mut self.preview {
+                    match k.code {
+                        KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('p') => {
+                            self.preview = None;
+                            return Action::None;
+                        }
+                        KeyCode::Left | KeyCode::Char('h') | KeyCode::PageUp => p.turn(-1),
+                        KeyCode::Right
+                        | KeyCode::Char('l')
+                        | KeyCode::PageDown
+                        | KeyCode::Char(' ') => p.turn(1),
+                        KeyCode::Up | KeyCode::Char('k') => p.scroll = p.scroll.saturating_sub(1),
+                        KeyCode::Down | KeyCode::Char('j') => p.scroll += 1,
+                        KeyCode::Home => p.turn(-(p.pages.len() as i32)),
+                        KeyCode::End => p.turn(p.pages.len() as i32),
+                        _ => {}
                     }
-                    (Mode::Preview, Action::None)
                 }
-                KeyCode::Right | KeyCode::Char('l') | KeyCode::PageDown => {
-                    if let (Some(p), Some(picker)) = (&mut self.preview, &self.picker) {
-                        let _ = p.turn(picker, 1);
-                    }
-                    (Mode::Preview, Action::None)
-                }
-                _ => (Mode::Preview, Action::None),
-            },
+                (Mode::Preview, Action::None)
+            }
             Mode::Confirm(c) => {
                 if let KeyCode::Char(ch) = k.code
                     && self.lang().yes(ch)
