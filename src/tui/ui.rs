@@ -1,6 +1,8 @@
 use super::app::{App, Confirm, Item, Mode, Watching};
+#[cfg(feature = "preview")]
 use super::preview::Page;
 use super::writer::Editor;
+#[cfg(feature = "preview")]
 use super::writer::wrap;
 use crate::poem::Status;
 use crate::stats;
@@ -54,6 +56,7 @@ pub fn draw(f: &mut Frame, app: &mut App) {
 
     match &app.mode {
         Mode::Stats => draw_stats(f, body, app),
+        #[cfg(feature = "preview")]
         Mode::Preview => draw_preview(f, body.union(log), app),
         Mode::Log { scroll } => {
             let s = *scroll;
@@ -67,7 +70,7 @@ pub fn draw(f: &mut Frame, app: &mut App) {
             draw_right(f, right, app);
         }
     }
-    if !matches!(app.mode, Mode::Log { .. } | Mode::Preview) {
+    if !full_screen(&app.mode) {
         draw_log(f, log, app, 0, false);
     }
 
@@ -86,6 +89,7 @@ pub fn draw(f: &mut Frame, app: &mut App) {
         }
         Mode::Search { .. } => "⏎ · ↑↓ · Esc".into(),
         Mode::History { .. } | Mode::Stats | Mode::Log { .. } => "↑↓ · Esc".into(),
+        #[cfg(feature = "preview")]
         Mode::Preview => app.t("preview_keys").into(),
         _ => match &app.flash {
             Some((m, _)) => m.clone(),
@@ -607,6 +611,17 @@ fn draw_writer(f: &mut Frame, area: Rect, ed: &mut Editor, lang: crate::lang::La
     }
 }
 
+/// Screens that take the log panel's space too.
+fn full_screen(mode: &Mode) -> bool {
+    match mode {
+        Mode::Log { .. } => true,
+        #[cfg(feature = "preview")]
+        Mode::Preview => true,
+        _ => false,
+    }
+}
+
+#[cfg(feature = "preview")]
 /// The text proof: a dark "sheet of paper" with the page laid out like the PDF.
 fn draw_preview(f: &mut Frame, area: Rect, app: &mut App) {
     let lang = app.lang();
@@ -788,6 +803,7 @@ fn draw_preview(f: &mut Frame, area: Rect, app: &mut App) {
     }
 }
 
+#[cfg(feature = "preview")]
 fn page_number(f: &mut Frame, inner: Rect, n: usize) {
     let r = Rect {
         x: inner.x,

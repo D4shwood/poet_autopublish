@@ -107,7 +107,6 @@ Arayüzde:
 | `⏎` | seçili şiiri yazma ekranında aç |
 | `/` | tüm şiirlerde ve geçmişlerinde ara |
 | `h` | seçili şiirin geçmişi |
-| `p` | sayfaları terminalde metin olarak gör: kapaklar, şiirler, içindekiler, künye (sayfa çevirmek için ← →) |
 | `o` | PDF'i aç (hangi programla açılacağını config'deki `pdf_viewer` belirler) |
 | `b` / `f` | derle / her şeyi baştan derle |
 | `D` | şiiri çöp kutusuna taşı |
