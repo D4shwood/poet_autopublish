@@ -75,6 +75,11 @@ Gizli dosyalar, `_` ile başlayan dosyalar ve yedek dosyaları yok sayılır.
 
 ## Çıktı
 
+Bir hafta, en erken şiirinin tarihiyle adlandırılır ("5 Ekim Haftası"). Arayüzde
+`r` ile yeniden adlandırabilirsin. Özel adlar
+`~/.config/poetautopublish/weeks.toml` dosyasında tutulur. Kapağı, içindekileri
+ve PDF başlığını değiştirir, dosya adını değiştirmez.
+
 Her hafta için haftanın ilk şiirinin adını taşıyan bir
 `<seri>_GG_AA_week.pdf` dosyası oluşur, örneğin `contra_noir_13_10_week.pdf`.
 Toplu kitabın adı `<seri>_all.pdf`'tir ve en yeni hafta en başta yer alır.
@@ -98,6 +103,7 @@ Arayüzde:
 | Tuş | |
 |---|---|
 | `n` | yeni şiir |
+| `r` | seçili haftayı yeniden adlandır (boş bırakırsan varsayılan ad geri gelir) |
 | `⏎` | seçili şiiri yazma ekranında aç |
 | `/` | tüm şiirlerde ve geçmişlerinde ara |
 | `h` | seçili şiirin geçmişi |
@@ -108,6 +114,7 @@ Arayüzde:
 | `w` | arka plan izleyicisini başlat, durdur ya da kur |
 | `l` | kayıt |
 | `e` | şiiri `$EDITOR` ile aç |
+| `q` / **End Noir** | çık; süren bir derleme varsa önce bitmesi beklenir |
 
 Yazma ekranında:
 - `Ctrl+S` taslak olarak kaydeder.

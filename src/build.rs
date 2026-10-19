@@ -1,4 +1,4 @@
-use crate::config::{Config, ensure_dir, log_path, state_dir};
+use crate::config::{self, Config, ensure_dir, log_path, state_dir};
 use crate::history;
 use crate::lang::{self, Lang};
 use crate::latex::{self, Ctx};
@@ -168,13 +168,17 @@ pub struct Library {
 pub fn library(cfg: &Config, poems_dir: &Path) -> Result<Library> {
     let scan = poem::scan(poems_dir)?;
     let lang = lang::resolve(&cfg.lang, &scan.poems);
-    let weeks = volume::group(
+    let mut weeks = volume::group(
         &scan.poems,
         &scan.epigraphs,
         &cfg.author,
         cfg.night_cutoff(),
         &cfg.series,
     );
+    let names = config::week_names();
+    for w in &mut weeks {
+        w.name = names.get(&w.key).cloned();
+    }
     Ok(Library {
         scan,
         weeks,

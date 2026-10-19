@@ -27,6 +27,7 @@ pub enum Item {
     Unsigned,
     Drafts,
     Stats,
+    Quit,
 }
 
 pub enum Confirm {
@@ -54,6 +55,11 @@ pub enum Mode {
     Preview,
     Confirm(Confirm),
     WatcherMenu,
+    /// Typing a new name for the week at `idx`.
+    Rename {
+        idx: usize,
+        input: String,
+    },
 }
 
 /// Things the event loop has to do outside the app (they need the terminal).
@@ -87,6 +93,8 @@ pub struct App {
     last_refresh: Instant,
     last_service_check: Instant,
     pub flash: Option<(String, Instant)>,
+    /// Set by the quit item or `q`; the app exits once no build is running.
+    pub quitting: bool,
     pub quit: bool,
 }
 
@@ -111,6 +119,7 @@ impl App {
             last_refresh: Instant::now(),
             last_service_check: Instant::now() - Duration::from_secs(60),
             flash: None,
+            quitting: false,
             quit: false,
         };
         app.refresh();
@@ -144,6 +153,7 @@ impl App {
         items.push(Item::Unsigned);
         items.push(Item::Drafts);
         items.push(Item::Stats);
+        items.push(Item::Quit);
         self.items = items;
         self.left = self.left.min(self.items.len() - 1);
         let n = self.right_poems().len();
@@ -213,7 +223,7 @@ impl App {
                 v.sort_by_key(|p| std::cmp::Reverse(mtime(&p.path)));
                 v
             }
-            Item::Stats => vec![],
+            Item::Stats | Item::Quit => vec![],
         }
     }
 
@@ -264,6 +274,11 @@ impl App {
     pub fn tick(&mut self) {
         if self.tui_watch.as_mut().is_some_and(|w| w.poll()) {
             self.start_build(false);
+        }
+        // Safe quit: let a running build finish so no PDF is left half-written.
+        if self.quitting && !self.building.load(Ordering::SeqCst) {
+            self.quit = true;
+            return;
         }
         if self.build_pending && !self.building.load(Ordering::SeqCst) {
             self.build_pending = false;
@@ -346,6 +361,7 @@ impl App {
             Mode::Writer(ed) => {
                 ed.insert_str(s);
             }
+            Mode::Rename { input, .. } => input.push_str(s.lines().next().unwrap_or("")),
             Mode::Search { query, hits, sel } => {
                 query.push_str(s.lines().next().unwrap_or(""));
                 *hits = search::search(&self.lib.scan.poems, query);
@@ -459,6 +475,38 @@ impl App {
                 }
                 (Mode::Main, Action::None)
             }
+            Mode::Rename { idx, mut input } => match k.code {
+                KeyCode::Esc => (Mode::Main, Action::None),
+                KeyCode::Enter => {
+                    if let Some(w) = self.lib.weeks.get(idx) {
+                        match crate::config::set_week_name(&w.key, &input) {
+                            Ok(()) => {
+                                build::log(&format!(
+                                    "renamed {} to \"{}\"",
+                                    w.file_name,
+                                    input.trim()
+                                ));
+                                self.refresh();
+                                self.start_build(false);
+                            }
+                            Err(e) => self.say(format!("{e:#}")),
+                        }
+                    }
+                    (Mode::Main, Action::None)
+                }
+                KeyCode::Backspace => {
+                    input.pop();
+                    (Mode::Rename { idx, input }, Action::None)
+                }
+                KeyCode::Char(c)
+                    if !k.modifiers.contains(KeyModifiers::CONTROL)
+                        || k.modifiers.contains(KeyModifiers::ALT) =>
+                {
+                    input.push(c);
+                    (Mode::Rename { idx, input }, Action::None)
+                }
+                _ => (Mode::Rename { idx, input }, Action::None),
+            },
             Mode::WatcherMenu => {
                 let r = match k.code {
                     KeyCode::Char('1') => install::service("start").map(|_| ()),
@@ -481,7 +529,14 @@ impl App {
     fn key_main(&mut self, k: KeyEvent) -> Action {
         let n_right = self.right_poems().len();
         match k.code {
-            KeyCode::Char('q') => self.quit = true,
+            KeyCode::Char('q') => self.quitting = true,
+            KeyCode::Char('r') => {
+                if let Item::Week(i) = self.current_item() {
+                    let w = &self.lib.weeks[i];
+                    let input = w.label(self.lang());
+                    self.mode = Mode::Rename { idx: i, input };
+                }
+            }
             KeyCode::Char('n') => self.new_poem(),
             KeyCode::Up | KeyCode::Char('k') => {
                 if self.focus_right {
@@ -517,6 +572,7 @@ impl App {
                             }
                         }
                         Item::Stats => self.mode = Mode::Stats,
+                        Item::Quit => self.quitting = true,
                         _ if n_right > 0 => self.focus_right = true,
                         _ => {}
                     }

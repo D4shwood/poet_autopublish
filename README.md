@@ -71,6 +71,11 @@ Hidden files, files starting with `_`, and backup files are ignored.
 
 ## Output
 
+A week is named after its earliest poem ("5 Ekim Haftası" / "Week of 5
+October") unless you rename it with `r` in the interface. Custom names are kept
+in `~/.config/poetautopublish/weeks.toml`. They change the cover, the contents
+and the PDF title, but not the file name.
+
 For each week, `<series>_DD_MM_week.pdf` is named after the week's first poem,
 for example `contra_noir_13_10_week.pdf`. The cumulative book is
 `<series>_all.pdf`, with the newest week first. Set `mirror_dir` to also copy
@@ -93,6 +98,7 @@ In the interface:
 | Key | |
 |---|---|
 | `n` | new poem |
+| `r` | rename the selected week (empty = back to the default name) |
 | `⏎` | open the selected poem in the writing screen |
 | `/` | search all poems and their history |
 | `h` | history of the selected poem |
@@ -103,6 +109,7 @@ In the interface:
 | `w` | start, stop or install the background watcher |
 | `l` | log |
 | `e` | open the poem in `$EDITOR` |
+| `q` / **End Noir** | quit; a running build is allowed to finish first |
 
 In the writing screen: `Ctrl+S` saves (as a draft), `Ctrl+G` signs with the
 current time and publishes, `Ctrl+T` toggles typewriter mode, `Ctrl+Z` undoes,
