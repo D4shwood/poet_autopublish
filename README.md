@@ -53,6 +53,10 @@ a blank line starts a new stanza.
 - **Line 1** is the title.
 - **The last line is the signature.** Only signed poems are published. Variants
   like `Your Name 13/10/2026 22:58` or a date without a time also work.
+- **Unsure of the day?** Put a `~` before the date: `- Your Name. ~08.10.2026`
+  means "around 8 October". The poem goes into that week, after the poems
+  with exact dates, and its footer shows only the week of the month
+  (`October 2026 · week 2`).
 - **Night writing:** a poem signed before 05:00 counts as the previous day
   (`night_cutoff`), so it stays in that night's week. The page still shows the
   real time.

@@ -8,7 +8,7 @@ use std::sync::LazyLock;
 
 static SIGNATURE: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(
-        r"^\s*[-–—]?\s*(?P<author>[^\d]+?)[.,]?\s*(?P<d>\d{1,2})[./](?P<m>\d{1,2})[./](?P<y>\d{4})(?:\s*[-–—]?\s*(?P<H>\d{1,2})[.:](?P<M>\d{2}))?\s*$",
+        r"^\s*[-–—]?\s*(?P<author>[^\d~]+?)[.,]?\s*(?P<approx>~)?\s*(?P<d>\d{1,2})[./](?P<m>\d{1,2})[./](?P<y>\d{4})(?:\s*[-–—]?\s*(?P<H>\d{1,2})[.:](?P<M>\d{2}))?\s*$",
     )
     .unwrap()
 });
@@ -24,6 +24,8 @@ pub struct Signature {
     pub author: String,
     pub date: NaiveDate,
     pub time: Option<NaiveTime>,
+    /// `~08.10.2026`: the exact day is unknown; only its week is.
+    pub approx: bool,
 }
 
 impl Signature {
@@ -50,7 +52,13 @@ impl Signature {
             )?),
             _ => None,
         };
-        Some(Signature { author, date, time })
+        let approx = c.name("approx").is_some();
+        Some(Signature {
+            author,
+            date,
+            time: if approx { None } else { time },
+            approx,
+        })
     }
 
     /// The canonical form written by "Sign & publish".
@@ -66,8 +74,12 @@ impl Signature {
         }
     }
 
-    pub fn sort_key(&self) -> NaiveDateTime {
-        self.date.and_time(self.time.unwrap_or(NaiveTime::MIN))
+    /// Poems with an approximate date sort after the dated ones of their week.
+    pub fn sort_key(&self) -> (bool, NaiveDateTime) {
+        (
+            self.approx,
+            self.date.and_time(self.time.unwrap_or(NaiveTime::MIN)),
+        )
     }
 }
 
@@ -291,6 +303,17 @@ mod tests {
 
         let s = Signature::parse("- Deniz Yalın. 13.10.2026").unwrap();
         assert_eq!(s.time, None);
+
+        let s = Signature::parse("-Deniz Yalın ~08.10.2026").unwrap();
+        assert_eq!(s.author, "Deniz Yalın");
+        assert!(s.approx);
+        assert_eq!(s.date, NaiveDate::from_ymd_opt(2026, 10, 8).unwrap());
+        assert!(
+            !Signature::parse("- Deniz Yalın. 09.10.2026")
+                .unwrap()
+                .approx
+        );
+        assert!(Signature::parse("-Deniz Yalın xx.10.2026").is_none());
 
         assert!(Signature::parse("B00").is_none());
         assert!(Signature::parse("Sabah oldu. Gün ağardı.").is_none());

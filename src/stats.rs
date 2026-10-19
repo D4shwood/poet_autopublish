@@ -23,7 +23,10 @@ pub fn compute(weeks: &[Week], lang: Lang, today: NaiveDate) -> Stats {
     let mut days = BTreeSet::new();
     for p in &poems {
         let sig = p.signature.as_ref().unwrap();
-        days.insert(sig.date);
+        // An approximate day can't count toward a streak.
+        if !sig.approx {
+            days.insert(sig.date);
+        }
         if let Some(t) = sig.time {
             by_hour[t.hour() as usize] += 1;
         }

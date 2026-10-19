@@ -56,6 +56,10 @@ boş satır yeni bir kıta başlatır.
 - **1. satır** başlıktır.
 - **Son satır imzadır.** Sadece imzalı şiirler yayımlanır.
   `Adın 13/10/2026 22:58` gibi yazımlar ya da saatsiz bir tarih de olur.
+- **Günden emin değil misin?** Tarihin önüne `~` koy: `- Adın Soyadın. ~08.10.2026`
+  "8 Ekim civarı" demektir. Şiir o haftaya, kesin tarihli şiirlerden sonra
+  girer. Alt bilgisinde sadece ayın kaçıncı haftası yazar
+  (`Ekim 2026 · 2. hafta`).
 - **Gece yazmak:** 05.00'ten önce imzalanan şiir bir önceki güne sayılır
   (`night_cutoff`), böylece o gecenin haftasında kalır. Sayfada yine gerçek
   saat görünür.

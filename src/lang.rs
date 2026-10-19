@@ -81,6 +81,17 @@ impl Lang {
         format!("{} {} {}", d.day(), self.month(d.month()), d.year())
     }
 
+    /// Which Monday-started week of its month a date falls in:
+    /// "Ekim 2026 · 2. hafta" / "October 2026 · week 2".
+    pub fn month_week(self, d: NaiveDate) -> String {
+        let offset = d.with_day(1).unwrap().weekday().num_days_from_monday();
+        let n = (d.day() + offset - 1) / 7 + 1;
+        match self {
+            Lang::Tr => format!("{} {} · {n}. hafta", self.month(d.month()), d.year()),
+            Lang::En => format!("{} {} · week {n}", self.month(d.month()), d.year()),
+        }
+    }
+
     /// "20 Ekim" / "20 October"
     pub fn date_short(self, d: NaiveDate) -> String {
         format!("{} {}", d.day(), self.month(d.month()))
@@ -205,5 +216,9 @@ mod tests {
         assert_eq!(Lang::En.week_label(d), "Week of 8 October");
         assert_eq!(Lang::Tr.date_long(d), "8 Ekim 2026");
         assert_eq!(Lang::En.poem_count(1), "1 poem");
+        // 1 October 2026 is a Thursday, so 1–4 Oct is week 1 and 8 Oct is week 2.
+        assert_eq!(Lang::Tr.month_week(d), "Ekim 2026 · 2. hafta");
+        let first = NaiveDate::from_ymd_opt(2026, 10, 4).unwrap();
+        assert_eq!(Lang::En.month_week(first), "October 2026 · week 1");
     }
 }
