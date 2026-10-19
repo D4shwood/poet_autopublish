@@ -1,0 +1,24 @@
+[package]
+name = "poetautopublish"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow = "1.0.104"
+chrono = { version = "0.4.45", features = ["serde"] }
+clap = { version = "4.6.7", features = ["derive"] }
+dirs = "7.0.0"
+fs2 = "0.4.3"
+image = { version = "0.25.10", default-features = false, features = ["png"] }
+notify = "8.2.0"
+notify-debouncer-mini = "0.7.0"
+rand = "0.10.3"
+ratatui = "0.30.2"
+ratatui-image = { version = "11.1.0", default-features = false, features = ["image-defaults", "crossterm"] }
+regex = "1.13.1"
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.154"
+sha2 = "0.11.1"
+tempfile = "3.27.0"
+toml = "1.1.8"
+trash = "5.2.9"
