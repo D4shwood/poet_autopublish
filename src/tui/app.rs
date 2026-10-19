@@ -26,6 +26,8 @@ pub enum Item {
     ContinueDraft,
     Week(usize),
     All,
+    /// A subfolder's book, outside the weekly series.
+    Collection(usize),
     Unsigned,
     Drafts,
     Stats,
@@ -153,6 +155,9 @@ impl App {
             items.push(Item::Week(i));
         }
         items.push(Item::All);
+        for i in 0..self.lib.collections.len() {
+            items.push(Item::Collection(i));
+        }
         items.push(Item::Unsigned);
         items.push(Item::Drafts);
         items.push(Item::Stats);
@@ -190,6 +195,7 @@ impl App {
         match item {
             Item::Week(i) => self.lib.weeks[i].poems.len(),
             Item::All => self.lib.weeks.iter().map(|w| w.poems.len()).sum(),
+            Item::Collection(i) => self.lib.collections[i].poems.len(),
             Item::Unsigned => self
                 .with_status(|s| matches!(s, Status::Unsigned | Status::Foreign(_)))
                 .len(),
@@ -201,8 +207,7 @@ impl App {
     fn with_status(&self, f: impl Fn(&Status) -> bool) -> Vec<&Poem> {
         self.lib
             .scan
-            .poems
-            .iter()
+            .all_poems()
             .filter(|p| f(&p.status(&self.cfg.author)))
             .collect()
     }
@@ -218,6 +223,7 @@ impl App {
                 .rev()
                 .flat_map(|w| w.poems.iter())
                 .collect(),
+            Item::Collection(i) => self.lib.collections[i].poems.iter().collect(),
             Item::Unsigned => {
                 self.with_status(|s| matches!(s, Status::Unsigned | Status::Foreign(_)))
             }
@@ -241,16 +247,26 @@ impl App {
     fn selected_pdf(&self) -> Option<(PathBuf, Option<String>)> {
         let out = self.cfg.out_dir();
         if let Some(p) = self.selected_poem() {
-            let w = self
+            let holds = |poems: &[Poem]| poems.iter().any(|q| q.file_name == p.file_name);
+            let file = self
                 .lib
                 .weeks
                 .iter()
-                .find(|w| w.poems.iter().any(|q| q.file_name == p.file_name))?;
-            return Some((out.join(&w.file_name), Some(p.title.clone())));
+                .find(|w| holds(&w.poems))
+                .map(|w| &w.file_name)
+                .or_else(|| {
+                    self.lib
+                        .collections
+                        .iter()
+                        .find(|c| holds(&c.poems))
+                        .map(|c| &c.file_name)
+                })?;
+            return Some((out.join(file), Some(p.title.clone())));
         }
         match self.current_item() {
             Item::Week(i) => Some((out.join(&self.lib.weeks[i].file_name), None)),
             Item::All => Some((out.join(&self.lib.book), None)),
+            Item::Collection(i) => Some((out.join(&self.lib.collections[i].file_name), None)),
             _ => None,
         }
         .filter(|(p, _)| p.exists())
@@ -310,7 +326,8 @@ impl App {
     // ---------------------------------------------------------------- actions
 
     pub fn new_poem(&mut self) {
-        let insp = writer::inspiration(&self.lib.scan.poems);
+        let all: Vec<Poem> = self.lib.scan.all_poems().cloned().collect();
+        let insp = writer::inspiration(&all);
         self.mode = Mode::Writer(Box::new(Editor::new(insp)));
     }
 
@@ -394,7 +411,10 @@ impl App {
             Mode::Rename { input, .. } => input.push_str(s.lines().next().unwrap_or("")),
             Mode::Search { query, hits, sel } => {
                 query.push_str(s.lines().next().unwrap_or(""));
-                *hits = search::search(&self.lib.scan.poems, query);
+                *hits = search::search(
+                    &self.lib.scan.all_poems().cloned().collect::<Vec<_>>(),
+                    query,
+                );
                 *sel = 0;
             }
             _ => {}
@@ -728,7 +748,10 @@ impl App {
             KeyCode::Down => sel = (sel + 1).min(hits.len().saturating_sub(1)),
             KeyCode::Backspace => {
                 query.pop();
-                hits = search::search(&self.lib.scan.poems, &query);
+                hits = search::search(
+                    &self.lib.scan.all_poems().cloned().collect::<Vec<_>>(),
+                    &query,
+                );
                 sel = 0;
             }
             KeyCode::Char(c)
@@ -736,7 +759,10 @@ impl App {
                     || k.modifiers.contains(KeyModifiers::ALT) =>
             {
                 query.push(c);
-                hits = search::search(&self.lib.scan.poems, &query);
+                hits = search::search(
+                    &self.lib.scan.all_poems().cloned().collect::<Vec<_>>(),
+                    &query,
+                );
                 sel = 0;
             }
             _ => {}

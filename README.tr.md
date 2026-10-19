@@ -73,6 +73,16 @@ boş satır yeni bir kıta başlatır.
 
 Gizli dosyalar, `_` ile başlayan dosyalar ve yedek dosyaları yok sayılır.
 
+## Koleksiyonlar
+
+Haftalık seriye ait olmayan şiirler, örneğin eski şiirlerin, şiir klasörünün
+bir **alt klasörüne** girer (`~/poetry/Eski Şiirler/` gibi). Her alt
+klasör kendi kitabı olur: `eski_siirler.pdf`. Kapağında klasörün adı ve senin
+adın yer alır; bir de içindekiler sayfası vardır. Şiirler alfabetik sıralanır
+ve tıpkı seride olduğu gibi sadece imzalı olanlar yayımlanır. Koleksiyonlar
+haftalık ciltlere ve serinin toplu kitabına karışmaz. Arayüzde *Koleksiyonlar*
+başlığı altında listelenir.
+
 ## Çıktı
 
 Bir hafta, en erken şiirinin tarihiyle adlandırılır ("5 Ekim Haftası"). Arayüzde

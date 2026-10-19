@@ -60,6 +60,9 @@ pub fn snapshot(file_name: &str, text: &str, keep: usize) -> Result<bool> {
 pub fn rename(old: &str, new: &str) {
     let (from, to) = (poem_dir(old), poem_dir(new));
     if from.exists() && !to.exists() {
+        if let Some(parent) = to.parent() {
+            let _ = fs::create_dir_all(parent);
+        }
         let _ = fs::rename(from, to);
     }
 }

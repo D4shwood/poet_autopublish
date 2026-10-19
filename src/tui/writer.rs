@@ -280,7 +280,14 @@ impl Editor {
         if self.is_empty() {
             return Ok(());
         }
-        let dir = cfg.poems_dir();
+        // A poem stays in its own folder: the poems folder or a collection subfolder.
+        let dir = match &self.path {
+            Some(p) => p
+                .parent()
+                .map(Path::to_path_buf)
+                .unwrap_or_else(|| cfg.poems_dir()),
+            None => cfg.poems_dir(),
+        };
         fs::create_dir_all(&dir)?;
         let wanted = sanitize(self.title());
         let path = match &self.path {
@@ -293,12 +300,10 @@ impl Editor {
             {
                 let new = unique(&dir, &wanted, Some(p));
                 if new != *p {
-                    let old_name = p.file_name().unwrap().to_string_lossy().to_string();
-                    let new_name = new.file_name().unwrap().to_string_lossy().to_string();
                     if p.exists() {
                         fs::rename(p, &new)?;
                     }
-                    history::rename(&old_name, &new_name);
+                    history::rename(&history_key(cfg, p), &history_key(cfg, &new));
                 }
                 new
             }
@@ -311,11 +316,7 @@ impl Editor {
         ));
         fs::write(&tmp, &text)?;
         fs::rename(&tmp, &path)?;
-        let _ = history::snapshot(
-            &path.file_name().unwrap().to_string_lossy(),
-            &text,
-            cfg.history_keep,
-        );
+        let _ = history::snapshot(&history_key(cfg, &path), &text, cfg.history_keep);
         self.path = Some(path);
         self.dirty = false;
         self.last_saved = Some(Local::now());
@@ -397,6 +398,18 @@ pub fn wrap(line: &str, width: usize) -> Vec<(usize, String)> {
         start = end;
     }
     out
+}
+
+/// History key, matching `Poem::file_name`: "name", or "Folder/name" in a collection.
+fn history_key(cfg: &Config, path: &Path) -> String {
+    path.strip_prefix(cfg.poems_dir())
+        .map(|r| r.to_string_lossy().to_string())
+        .unwrap_or_else(|_| {
+            path.file_name()
+                .unwrap_or_default()
+                .to_string_lossy()
+                .to_string()
+        })
 }
 
 /// A file name from a title: `/` replaced, Turkish letters kept.

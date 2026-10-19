@@ -153,6 +153,10 @@ fn item_label(app: &App, item: Item) -> String {
             format!("  {}  ({})", w.label(app.lang()), w.poems.len())
         }
         Item::All => format!("  {}  ({})", app.t("all_poems"), app.count(item)),
+        Item::Collection(i) => {
+            let c = &app.lib.collections[i];
+            format!("  {}  ({})", c.name, c.poems.len())
+        }
         Item::Unsigned => format!("{}  ({})", app.t("unsigned"), app.count(item)),
         Item::Drafts => format!("{}  ({})", app.t("drafts"), app.count(item)),
         Item::Stats => app.t("stats").into(),
@@ -175,6 +179,15 @@ fn draw_left(f: &mut Frame, area: Rect, app: &App) {
         {
             lines.push(Line::from(Span::styled(
                 format!(" {}", app.t("weeks")),
+                Style::default().fg(FAINT),
+            )));
+        }
+        if matches!(item, Item::Collection(_))
+            && i > 0
+            && !matches!(app.items[i - 1], Item::Collection(_))
+        {
+            lines.push(Line::from(Span::styled(
+                format!(" {}", app.t("collections")),
                 Style::default().fg(FAINT),
             )));
         }

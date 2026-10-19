@@ -40,7 +40,7 @@ pub fn watch_dir(dir: &Path) -> Result<Watcher> {
             let _ = tx.send(());
         }
     })?;
-    inner.watch(dir, RecursiveMode::NonRecursive)?;
+    inner.watch(dir, RecursiveMode::Recursive)?;
     Ok(Watcher {
         _inner: inner,
         rx,

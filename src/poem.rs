@@ -95,7 +95,11 @@ pub enum Status {
 #[derive(Debug, Clone)]
 pub struct Poem {
     pub path: PathBuf,
+    /// Unique key for history and state: the file name, or "Folder/name"
+    /// for a poem inside a collection subfolder.
     pub file_name: String,
+    /// The collection (subfolder) the poem belongs to; None for Contra Noir.
+    pub collection: Option<String>,
     pub title: String,
     /// Lines between the title and the signature, with the draft tag removed
     /// and surrounding blank lines trimmed.
@@ -150,6 +154,7 @@ impl Poem {
         Poem {
             path: path.to_path_buf(),
             file_name,
+            collection: None,
             title,
             body: lines,
             signature,
@@ -255,6 +260,31 @@ impl Epigraph {
 pub struct Scan {
     pub poems: Vec<Poem>,
     pub epigraphs: Vec<Epigraph>,
+    /// Subfolders of the poems folder: (folder name, its poems).
+    pub collections: Vec<(String, Vec<Poem>)>,
+}
+
+impl Scan {
+    /// Contra Noir poems followed by every collection's poems.
+    pub fn all_poems(&self) -> impl Iterator<Item = &Poem> {
+        self.poems
+            .iter()
+            .chain(self.collections.iter().flat_map(|(_, p)| p.iter()))
+    }
+}
+
+/// Poem files directly inside `dir` (not its subfolders).
+fn poems_in(dir: &Path) -> Vec<Poem> {
+    let mut poems: Vec<Poem> = fs::read_dir(dir)
+        .into_iter()
+        .flatten()
+        .flatten()
+        .map(|e| e.path())
+        .filter(|p| p.is_file() && is_poem_file(p))
+        .filter_map(|p| fs::read_to_string(&p).ok().map(|t| Poem::parse(&p, &t)))
+        .collect();
+    poems.sort_by(|a, b| a.file_name.cmp(&b.file_name));
+    poems
 }
 
 pub fn scan(dir: &Path) -> Result<Scan> {
@@ -282,6 +312,28 @@ pub fn scan(dir: &Path) -> Result<Scan> {
         }
     }
     out.poems.sort_by(|a, b| a.file_name.cmp(&b.file_name));
+
+    // Every visible subfolder is a collection outside the weekly series.
+    let mut folders: Vec<PathBuf> = fs::read_dir(dir)?
+        .flatten()
+        .map(|e| e.path())
+        .filter(|p| {
+            p.is_dir()
+                && p.file_name()
+                    .map(|n| !n.to_string_lossy().starts_with(['.', '_']))
+                    .unwrap_or(false)
+        })
+        .collect();
+    folders.sort();
+    for folder in folders {
+        let name = folder.file_name().unwrap().to_string_lossy().to_string();
+        let mut poems = poems_in(&folder);
+        for p in &mut poems {
+            p.file_name = format!("{name}/{}", p.file_name);
+            p.collection = Some(name.clone());
+        }
+        out.collections.push((name, poems));
+    }
     Ok(out)
 }
 

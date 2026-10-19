@@ -69,6 +69,16 @@ a blank line starts a new stanza.
 
 Hidden files, files starting with `_`, and backup files are ignored.
 
+## Collections
+
+Poems that don't belong to the weekly series, such as older work, go into a
+**subfolder** of the poems folder, for example `~/poetry/Old Poems/`. Each
+subfolder becomes its own book, `old_poems.pdf`. Its cover carries the folder
+name and your name, and it has a table of contents. Poems are sorted
+alphabetically, and only signed poems are published, as in the series.
+Collections never appear in the weekly volumes or the series book. In the
+interface they are listed under *Collections*.
+
 ## Output
 
 A week is named after its earliest poem ("5 Ekim Haftası" / "Week of 5

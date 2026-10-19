@@ -107,6 +107,59 @@ pub fn group(
     weeks
 }
 
+/// A subfolder's book: its signed poems, alphabetical, outside the weekly series.
+#[derive(Debug, Clone)]
+pub struct Collection {
+    pub name: String,
+    pub poems: Vec<Poem>,
+    pub file_name: String,
+}
+
+pub fn collections(folders: &[(String, Vec<Poem>)], author: &str) -> Vec<Collection> {
+    folders
+        .iter()
+        .map(|(name, poems)| {
+            let mut poems: Vec<Poem> = poems
+                .iter()
+                .filter(|p| p.status(author) == Status::Published)
+                .cloned()
+                .collect();
+            poems.sort_by_key(|p| turkish_key(&p.title));
+            Collection {
+                name: name.clone(),
+                poems,
+                file_name: format!("{}.pdf", slug(name)),
+            }
+        })
+        .filter(|c| !c.poems.is_empty())
+        .collect()
+}
+
+/// Sort key following the Turkish alphabet: a b c ç d … g ğ h ı i … o ö … s ş … u ü …
+pub fn turkish_key(s: &str) -> String {
+    let mut out = String::new();
+    for c in s.chars() {
+        match c {
+            'I' => out.push_str("h\u{7f}"),
+            'İ' => out.push('i'),
+            _ => {
+                for l in c.to_lowercase() {
+                    match l {
+                        'ç' => out.push_str("c\u{7f}"),
+                        'ğ' => out.push_str("g\u{7f}"),
+                        'ı' => out.push_str("h\u{7f}"),
+                        'ö' => out.push_str("o\u{7f}"),
+                        'ş' => out.push_str("s\u{7f}"),
+                        'ü' => out.push_str("u\u{7f}"),
+                        l => out.push(l),
+                    }
+                }
+            }
+        }
+    }
+    out
+}
+
 pub fn book_file_name(series: &str) -> String {
     format!("{}_all.pdf", slug(series))
 }
@@ -194,6 +247,22 @@ mod tests {
             weeks[0].first_date,
             NaiveDate::from_ymd_opt(2026, 12, 31).unwrap()
         );
+    }
+
+    #[test]
+    fn collection_books() {
+        let folder = vec![
+            poem("Şafak", "- Deniz Yalın. 01.01.2020"),
+            poem("Sabah", "- Deniz Yalın. 02.01.2020"),
+            poem("Çiçek", "- Deniz Yalın. 03.01.2020"),
+            poem("Cam", "- Deniz Yalın. 04.01.2020"),
+            poem("Imzasız", "B00"),
+        ];
+        let cs = collections(&[("Eski Şiirler".into(), folder)], "Deniz Yalın");
+        assert_eq!(cs[0].file_name, "eski_siirler.pdf");
+        let titles: Vec<_> = cs[0].poems.iter().map(|p| p.title.as_str()).collect();
+        assert_eq!(titles, vec!["Cam", "Çiçek", "Sabah", "Şafak"]);
+        assert!(collections(&[("Boş".into(), vec![])], "S").is_empty());
     }
 
     #[test]
