@@ -132,7 +132,7 @@ impl Lang {
             "unsigned" => ("⚠ İmzasız", "⚠ Unsigned"),
             "drafts" => ("✎ Taslaklar", "✎ Drafts"),
             "stats" => ("▤ İstatistikler", "▤ Statistics"),
-            "quit_item" => ("End Noir", "End Noir"),
+            "quit_item" => ("■ End Noir", "■ End Noir"),
             "quitting" => (
                 "Kapanıyor… derleme bitince çıkılacak.",
                 "Quitting… waiting for the build to finish.",
