@@ -96,7 +96,12 @@ pub fn footer_text(p: &Poem, ctx: &Ctx) -> String {
     let Some(sig) = &p.signature else {
         return String::new();
     };
-    let mut s = ctx.lang.date_long(sig.date);
+    // An approximate date only claims its week: "Ekim 2026 · 2. hafta".
+    let mut s = if sig.approx {
+        ctx.lang.month_week(sig.date)
+    } else {
+        ctx.lang.date_long(sig.date)
+    };
     if let Some(t) = sig.time {
         s.push_str(&format!(" · {}", t.format("%H.%M")));
     }

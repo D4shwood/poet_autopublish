@@ -310,6 +310,9 @@ fn draw_poem_list(f: &mut Frame, area: Rect, app: &App) {
             let when = match &p.signature {
                 Some(s) => {
                     let mut w = s.date.format("%d.%m").to_string();
+                    if s.approx {
+                        w.insert(0, '~');
+                    }
                     if let Some(t) = s.time {
                         w.push_str(&t.format(" %H.%M").to_string());
                     }

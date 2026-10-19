@@ -44,7 +44,13 @@ pub fn group(
                 let s = p.signature.as_ref().unwrap();
                 (s.sort_key(), p.file_name.clone())
             });
-            let first_date = poems[0].signature.as_ref().unwrap().effective_date(cutoff);
+            // Named after the earliest day of the week's poems, including
+            // approximate ones, even though those are listed last.
+            let first_date = poems
+                .iter()
+                .map(|p| p.signature.as_ref().unwrap().effective_date(cutoff))
+                .min()
+                .unwrap();
             let epigraph = epigraphs
                 .iter()
                 .filter(|e| {
@@ -142,6 +148,18 @@ mod tests {
         assert_eq!(titles, vec!["Kum", "Rüzgârda", "Gece"]);
         assert_eq!(weeks[1].file_name, "contra_noir_13_10_week.pdf");
         assert_eq!(weeks[1].number, 2);
+
+        // An approximate date goes to its week, after the exactly dated poems.
+        let mut more: Vec<Poem> = poems
+            .iter()
+            .filter(|p| p.title != "Kum")
+            .cloned()
+            .collect();
+        more.push(poem("Yaklaşık", "-Deniz Yalın ~08.10.2026"));
+        let weeks = group(&more, &[], "Deniz Yalın", cutoff, "Contra Noir");
+        let titles: Vec<_> = weeks[0].poems.iter().map(|p| p.title.as_str()).collect();
+        assert_eq!(titles, vec!["Rüzgârda", "Gece", "Yaklaşık"]);
+        assert_eq!(weeks[0].file_name, "contra_noir_08_10_week.pdf");
     }
 
     #[test]
