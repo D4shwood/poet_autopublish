@@ -36,18 +36,15 @@ pub fn list(file_name: &str) -> Vec<Snapshot> {
 /// Saves a snapshot if the text differs from the newest one, then prunes to `keep`.
 pub fn snapshot(file_name: &str, text: &str, keep: usize) -> Result<bool> {
     let existing = list(file_name);
-    if let Some(last) = existing.last() {
-        if fs::read_to_string(&last.path).map(|t| hash_str(&t)).ok() == Some(hash_str(text)) {
-            return Ok(false);
-        }
+    if let Some(last) = existing.last()
+        && fs::read_to_string(&last.path).map(|t| hash_str(&t)).ok() == Some(hash_str(text))
+    {
+        return Ok(false);
     }
     let dir = poem_dir(file_name);
     fs::create_dir_all(&dir)?;
-    let mut name = Local::now().format("%Y%m%d-%H%M%S").to_string();
-    if existing.last().is_some_and(|s| s.at.format("%Y%m%d-%H%M%S").to_string() == name) {
-        // Two changes in the same second: replace the newer snapshot.
-        name = existing.last().unwrap().at.format("%Y%m%d-%H%M%S").to_string();
-    }
+    // A second change within the same second overwrites that snapshot.
+    let name = Local::now().format("%Y%m%d-%H%M%S").to_string();
     fs::write(dir.join(format!("{name}.txt")), text)?;
 
     let all = list(file_name);

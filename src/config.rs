@@ -55,8 +55,8 @@ impl Config {
             let text = toml::to_string_pretty(&Config::default())?;
             fs::write(&path, text)?;
         }
-        let text = fs::read_to_string(&path)
-            .with_context(|| format!("reading {}", path.display()))?;
+        let text =
+            fs::read_to_string(&path).with_context(|| format!("reading {}", path.display()))?;
         let cfg: Config =
             toml::from_str(&text).with_context(|| format!("parsing {}", path.display()))?;
         Ok(cfg)
@@ -104,7 +104,9 @@ fn home() -> PathBuf {
 }
 
 pub fn config_dir() -> PathBuf {
-    dirs::config_dir().unwrap_or_else(|| home().join(".config")).join(APP)
+    dirs::config_dir()
+        .unwrap_or_else(|| home().join(".config"))
+        .join(APP)
 }
 
 pub fn data_dir() -> PathBuf {

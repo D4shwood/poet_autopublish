@@ -93,13 +93,19 @@ pub fn body_tex(body: &[String]) -> String {
 }
 
 pub fn footer_text(p: &Poem, ctx: &Ctx) -> String {
-    let Some(sig) = &p.signature else { return String::new() };
+    let Some(sig) = &p.signature else {
+        return String::new();
+    };
     let mut s = ctx.lang.date_long(sig.date);
     if let Some(t) = sig.time {
         s.push_str(&format!(" · {}", t.format("%H.%M")));
     }
     if let Some(r) = ctx.revisions.get(&p.file_name) {
-        s.push_str(&format!(" · {} {}", ctx.lang.t("rev"), ctx.lang.date_short(*r)));
+        s.push_str(&format!(
+            " · {} {}",
+            ctx.lang.t("rev"),
+            ctx.lang.date_short(*r)
+        ));
     }
     s
 }
@@ -114,7 +120,10 @@ fn poem_page(p: &Poem, ctx: &Ctx, toc: bool) -> String {
     }
     out.push_str(&format!("\\poemtitle{{{}}}\n", escape(&p.title)));
     out.push_str(&body_tex(&p.body));
-    out.push_str(&format!("\\poemfooter{{{}}}\n", escape(&footer_text(p, ctx))));
+    out.push_str(&format!(
+        "\\poemfooter{{{}}}\n",
+        escape(&footer_text(p, ctx))
+    ));
     out
 }
 
@@ -133,7 +142,12 @@ pub fn compiled_date<'p>(poems: impl Iterator<Item = &'p Poem>, ctx: &Ctx) -> Op
 
 fn epigraph_tex(w: &Week) -> String {
     match &w.epigraph {
-        Some(e) => e.lines.iter().map(|l| escape(l.trim())).collect::<Vec<_>>().join("\\\\\n"),
+        Some(e) => e
+            .lines
+            .iter()
+            .map(|l| escape(l.trim()))
+            .collect::<Vec<_>>()
+            .join("\\\\\n"),
         None => String::new(),
     }
 }
@@ -153,7 +167,11 @@ fn week_cover(w: &Week, ctx: &Ctx) -> String {
 fn colophon(label: &str, date: Option<NaiveDate>, ctx: &Ctx) -> String {
     let mut parts = vec![escape(ctx.series), escape(label)];
     if let Some(d) = date {
-        parts.push(format!("{} {}", ctx.lang.t("compiled"), ctx.lang.date_long(d)));
+        parts.push(format!(
+            "{} {}",
+            ctx.lang.t("compiled"),
+            ctx.lang.date_long(d)
+        ));
     }
     parts.push("Liberation Serif".into());
     parts.push("poetautopublish".into());
@@ -182,7 +200,11 @@ pub fn week_doc(w: &Week, ctx: &Ctx) -> String {
     for p in &w.poems {
         body.push_str(&poem_page(p, ctx, false));
     }
-    body.push_str(&colophon(&ctx.lang.volume(w.number), compiled_date(w.poems.iter(), ctx), ctx));
+    body.push_str(&colophon(
+        &ctx.lang.volume(w.number),
+        compiled_date(w.poems.iter(), ctx),
+        ctx,
+    ));
     let title = format!("{} — {}", ctx.series, ctx.lang.week_label(w.first_date));
     fill(ctx, &title, &body)
 }
@@ -226,7 +248,10 @@ mod tests {
 
     #[test]
     fn escaping() {
-        assert_eq!(escape("50% & #1 {x} a_b ~ ^ \\"), "50\\% \\& \\#1 \\{x\\} a\\_b \\textasciitilde{} \\textasciicircum{} \\textbackslash{}");
+        assert_eq!(
+            escape("50% & #1 {x} a_b ~ ^ \\"),
+            "50\\% \\& \\#1 \\{x\\} a\\_b \\textasciitilde{} \\textasciicircum{} \\textbackslash{}"
+        );
         assert_eq!(escape("na'hür; İş"), "na'hür; İş");
     }
 
@@ -241,6 +266,9 @@ mod tests {
     #[test]
     fn stanzas() {
         let tex = body_tex(&v(&["a", "b", "", "", "    c"]));
-        assert_eq!(tex, "\\needspace{2\\baselineskip}\n\\pl{0em}{a}\n\\pl{0em}{b}\n\\stanza{1}\n\\pl{2em}{c}\n");
+        assert_eq!(
+            tex,
+            "\\needspace{2\\baselineskip}\n\\pl{0em}{a}\n\\pl{0em}{b}\n\\stanza{1}\n\\pl{2em}{c}\n"
+        );
     }
 }

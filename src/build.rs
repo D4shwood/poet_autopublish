@@ -1,10 +1,10 @@
-use crate::config::{ensure_dir, log_path, state_dir, Config};
+use crate::config::{Config, ensure_dir, log_path, state_dir};
 use crate::history;
 use crate::lang::{self, Lang};
 use crate::latex::{self, Ctx};
-use crate::poem::{self, hash_str, Status};
+use crate::poem::{self, Status, hash_str};
 use crate::volume::{self, Week};
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use chrono::{Duration, Local, NaiveDate};
 use fs2::FileExt;
 use serde::{Deserialize, Serialize};
@@ -14,7 +14,14 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-const STYLES: [&str; 6] = ["fontspec.sty", "geometry.sty", "xcolor.sty", "needspace.sty", "fancyhdr.sty", "hyperref.sty"];
+const STYLES: [&str; 6] = [
+    "fontspec.sty",
+    "geometry.sty",
+    "xcolor.sty",
+    "needspace.sty",
+    "fancyhdr.sty",
+    "hyperref.sty",
+];
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct State {
@@ -95,9 +102,15 @@ impl Report {
 }
 
 pub fn check_deps() -> Result<()> {
-    let ok = Command::new("xelatex").arg("--version").output().map(|o| o.status.success()).unwrap_or(false);
+    let ok = Command::new("xelatex")
+        .arg("--version")
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false);
     if !ok {
-        bail!("xelatex not found. Install it with:\n  sudo pacman -S texlive-xetex texlive-latexrecommended texlive-latexextra");
+        bail!(
+            "xelatex not found. Install it with:\n  sudo pacman -S texlive-xetex texlive-latexrecommended texlive-latexextra"
+        );
     }
     let missing: Vec<&str> = STYLES
         .iter()
@@ -130,7 +143,11 @@ pub fn log(line: &str) {
 /// Exclusive lock shared by the watcher, the TUI and CLI builds.
 pub fn lock(out_dir: &Path) -> Result<File> {
     ensure_dir(out_dir)?;
-    let f = OpenOptions::new().create(true).truncate(false).write(true).open(out_dir.join(".lock"))?;
+    let f = OpenOptions::new()
+        .create(true)
+        .truncate(false)
+        .write(true)
+        .open(out_dir.join(".lock"))?;
     f.lock_exclusive()?;
     Ok(f)
 }
@@ -146,13 +163,26 @@ pub struct Library {
 pub fn library(cfg: &Config, poems_dir: &Path) -> Result<Library> {
     let scan = poem::scan(poems_dir)?;
     let lang = lang::resolve(&cfg.lang, &scan.poems);
-    let weeks = volume::group(&scan.poems, &scan.epigraphs, &cfg.author, cfg.night_cutoff(), &cfg.series);
-    Ok(Library { scan, weeks, lang, book: volume::book_file_name(&cfg.series) })
+    let weeks = volume::group(
+        &scan.poems,
+        &scan.epigraphs,
+        &cfg.author,
+        cfg.night_cutoff(),
+        &cfg.series,
+    );
+    Ok(Library {
+        scan,
+        weeks,
+        lang,
+        book: volume::book_file_name(&cfg.series),
+    })
 }
 
 pub fn build(cfg: &Config, poems_dir: Option<&Path>, force: bool) -> Result<Report> {
     check_deps()?;
-    let poems_dir = poems_dir.map(Path::to_path_buf).unwrap_or_else(|| cfg.poems_dir());
+    let poems_dir = poems_dir
+        .map(Path::to_path_buf)
+        .unwrap_or_else(|| cfg.poems_dir());
     let out_dir = cfg.out_dir();
     let _lock = lock(&out_dir)?;
 
@@ -173,14 +203,19 @@ pub fn build(cfg: &Config, poems_dir: Option<&Path>, force: bool) -> Result<Repo
     // Revision tracking for published poems.
     let mut state = State::load(&out_dir);
     let published: Vec<&poem::Poem> = lib.weeks.iter().flat_map(|w| w.poems.iter()).collect();
-    state.poems.retain(|k, _| published.iter().any(|p| &p.file_name == k));
+    state
+        .poems
+        .retain(|k, _| published.iter().any(|p| &p.file_name == k));
     for p in &published {
         let sig_date = p.signature.as_ref().unwrap().date;
-        let entry = state.poems.entry(p.file_name.clone()).or_insert_with(|| PoemState {
-            first_hash: p.hash.clone(),
-            last_hash: p.hash.clone(),
-            revised: None,
-        });
+        let entry = state
+            .poems
+            .entry(p.file_name.clone())
+            .or_insert_with(|| PoemState {
+                first_hash: p.hash.clone(),
+                last_hash: p.hash.clone(),
+                revised: None,
+            });
         if entry.last_hash != p.hash {
             entry.last_hash = p.hash.clone();
             if entry.last_hash == entry.first_hash {
@@ -193,7 +228,13 @@ pub fn build(cfg: &Config, poems_dir: Option<&Path>, force: bool) -> Result<Repo
     let revisions = state.revisions();
 
     let template = cfg.template();
-    let ctx = Ctx { template: &template, series: &cfg.series, author: &cfg.author, lang: lib.lang, revisions: &revisions };
+    let ctx = Ctx {
+        template: &template,
+        series: &cfg.series,
+        author: &cfg.author,
+        lang: lib.lang,
+        revisions: &revisions,
+    };
 
     let mut wanted: Vec<(String, String, u8)> = lib
         .weeks
@@ -238,10 +279,10 @@ pub fn build(cfg: &Config, poems_dir: Option<&Path>, force: bool) -> Result<Repo
     state.outputs = outputs;
     state.save(&out_dir)?;
 
-    if let Some(mirror) = cfg.mirror_dir() {
-        if let Err(e) = sync_mirror(&out_dir, &mirror, &state, &report) {
-            report.errors.push(format!("mirror: {e:#}"));
-        }
+    if let Some(mirror) = cfg.mirror_dir()
+        && let Err(e) = sync_mirror(&out_dir, &mirror, &state, &report)
+    {
+        report.errors.push(format!("mirror: {e:#}"));
     }
 
     for line in report.summary() {
@@ -276,12 +317,26 @@ fn compile(tex: &str, target: &Path, runs: u8) -> Result<()> {
             .context("running xelatex")?;
         if !out.status.success() {
             let log = fs::read_to_string(dir.path().join("doc.log")).unwrap_or_default();
-            let tail: Vec<&str> = log.lines().filter(|l| l.starts_with('!') || l.starts_with("l.")).take(6).collect();
-            bail!("xelatex failed: {}", if tail.is_empty() { "see log".into() } else { tail.join(" | ") });
+            let tail: Vec<&str> = log
+                .lines()
+                .filter(|l| l.starts_with('!') || l.starts_with("l."))
+                .take(6)
+                .collect();
+            bail!(
+                "xelatex failed: {}",
+                if tail.is_empty() {
+                    "see log".into()
+                } else {
+                    tail.join(" | ")
+                }
+            );
         }
     }
     let parent = target.parent().unwrap();
-    let tmp = parent.join(format!(".{}.tmp", target.file_name().unwrap().to_string_lossy()));
+    let tmp = parent.join(format!(
+        ".{}.tmp",
+        target.file_name().unwrap().to_string_lossy()
+    ));
     fs::copy(dir.path().join("doc.pdf"), &tmp)?;
     fs::rename(&tmp, target)?;
     Ok(())
