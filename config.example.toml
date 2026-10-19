@@ -1,0 +1,18 @@
+# Copy to ~/.config/poetautopublish/config.toml (created automatically on first run).
+
+# Folder with your poem files (no extension or .txt).
+poems_dir = "~/poetry"
+# Where the PDFs are written. Keep it outside poems_dir.
+out_dir = "~/poetry_published"
+# Optional folder that gets a copy of every PDF (e.g. a Syncthing folder). "" = off.
+mirror_dir = ""
+# Only poems signed with exactly this name are published.
+author = "Your Name"
+# The name of your series / journal, printed on every cover.
+series = "Contra Noir"
+# "auto" picks Turkish if most poems are Turkish, else English. Or "tr" / "en".
+lang = "auto"
+# Poems signed before this time belong to the previous day.
+night_cutoff = "05:00"
+# Draft-history snapshots kept per poem.
+history_keep = 50
