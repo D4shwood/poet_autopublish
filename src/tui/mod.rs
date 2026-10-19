@@ -1,4 +1,5 @@
 mod app;
+#[cfg(feature = "preview")]
 mod preview;
 mod ui;
 pub mod writer;

@@ -1,3 +1,4 @@
+#[cfg(feature = "preview")]
 use super::preview::Preview;
 use super::writer::{self, Editor};
 use crate::build::{self, Library};
@@ -5,6 +6,7 @@ use crate::config::{Config, log_path};
 use crate::history::{self, Snapshot};
 use crate::install;
 use crate::lang::Lang;
+#[cfg(feature = "preview")]
 use crate::latex::Ctx;
 use crate::poem::{Poem, Status};
 use crate::search::{self, Hit};
@@ -52,6 +54,7 @@ pub enum Mode {
     Log {
         scroll: usize,
     },
+    #[cfg(feature = "preview")]
     Preview,
     Confirm(Confirm),
     WatcherMenu,
@@ -88,6 +91,7 @@ pub struct App {
     build_pending: bool,
     pub watching: Watching,
     tui_watch: Option<Watcher>,
+    #[cfg(feature = "preview")]
     pub preview: Option<Preview>,
     last_refresh: Instant,
     last_service_check: Instant,
@@ -113,6 +117,7 @@ impl App {
             build_pending: false,
             watching: Watching::Off,
             tui_watch: None,
+            #[cfg(feature = "preview")]
             preview: None,
             last_refresh: Instant::now(),
             last_service_check: Instant::now() - Duration::from_secs(60),
@@ -342,6 +347,7 @@ impl App {
 
     /// The text proof of the selection: a poem's page within its volume,
     /// a whole volume, the book, or a lone draft/unsigned poem.
+    #[cfg(feature = "preview")]
     fn open_preview(&mut self) {
         let revisions = build::State::load(&self.cfg.out_dir()).revisions();
         let ctx = Ctx {
@@ -463,6 +469,7 @@ impl App {
                 ),
                 _ => (Mode::Log { scroll }, Action::None),
             },
+            #[cfg(feature = "preview")]
             Mode::Preview => {
                 if let Some(p) = &mut self.preview {
                     match k.code {
@@ -628,6 +635,7 @@ impl App {
                 }
             }
             KeyCode::Char('o') => self.open_pdf(),
+            #[cfg(feature = "preview")]
             KeyCode::Char('p') => self.open_preview(),
             KeyCode::Char('b') => self.start_build(false),
             KeyCode::Char('f') => self.mode = Mode::Confirm(Confirm::Force),

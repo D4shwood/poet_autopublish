@@ -153,8 +153,8 @@ impl Lang {
             "watch_off" => ("○ izleme kapalı", "○ not watching"),
             "building" => ("derleniyor…", "building…"),
             "keys_main" => (
-                "n yeni · ⏎ aç · r haftayı adlandır · / ara · h geçmiş · o pdf · p önizle · b derle · f zorla · D çöpe · s istatistik · w izleyici · l kayıt · q çık",
-                "n new · ⏎ open · r rename week · / search · h history · o pdf · p preview · b build · f force · D trash · s stats · w watcher · l log · q quit",
+                "n yeni · ⏎ aç · r haftayı adlandır · / ara · h geçmiş · o pdf · b derle · f zorla · D çöpe · s istatistik · w izleyici · l kayıt · q çık",
+                "n new · ⏎ open · r rename week · / search · h history · o pdf · b build · f force · D trash · s stats · w watcher · l log · q quit",
             ),
             "lines" => ("mısra", "lines"),
             "words" => ("kelime", "words"),

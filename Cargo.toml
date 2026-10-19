@@ -23,3 +23,8 @@ tempfile = "3.27.0"
 toml = "1.1.8"
 trash = "5.2.9"
 unicode-width = "0.2.2"
+
+[features]
+# The `p` text proof of the pages. Suspended for now; build with
+# `--features preview` to try it.
+preview = []
