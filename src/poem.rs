@@ -29,7 +29,11 @@ pub struct Signature {
 impl Signature {
     pub fn parse(line: &str) -> Option<Signature> {
         let c = SIGNATURE.captures(line)?;
-        let author = c["author"].trim().trim_end_matches(['.', ',']).trim().to_string();
+        let author = c["author"]
+            .trim()
+            .trim_end_matches(['.', ','])
+            .trim()
+            .to_string();
         if author.is_empty() {
             return None;
         }
@@ -39,9 +43,11 @@ impl Signature {
             c["d"].parse().ok()?,
         )?;
         let time = match (c.name("H"), c.name("M")) {
-            (Some(h), Some(m)) => {
-                Some(NaiveTime::from_hms_opt(h.as_str().parse().ok()?, m.as_str().parse().ok()?, 0)?)
-            }
+            (Some(h), Some(m)) => Some(NaiveTime::from_hms_opt(
+                h.as_str().parse().ok()?,
+                m.as_str().parse().ok()?,
+                0,
+            )?),
             _ => None,
         };
         Some(Signature { author, date, time })
@@ -107,20 +113,20 @@ impl Poem {
 
         // Draft tag: the first non-empty line after the title.
         let mut draft = false;
-        if let Some(i) = lines.iter().position(|l| !l.trim().is_empty()) {
-            if DRAFT_TAGS.contains(&lines[i].trim().to_lowercase().as_str()) {
-                draft = true;
-                lines.remove(i);
-            }
+        if let Some(i) = lines.iter().position(|l| !l.trim().is_empty())
+            && DRAFT_TAGS.contains(&lines[i].trim().to_lowercase().as_str())
+        {
+            draft = true;
+            lines.remove(i);
         }
 
         // Signature: the last non-empty line.
         let mut signature = None;
-        if let Some(i) = lines.iter().rposition(|l| !l.trim().is_empty()) {
-            if let Some(sig) = Signature::parse(&lines[i]) {
-                signature = Some(sig);
-                lines.truncate(i);
-            }
+        if let Some(i) = lines.iter().rposition(|l| !l.trim().is_empty())
+            && let Some(sig) = Signature::parse(&lines[i])
+        {
+            signature = Some(sig);
+            lines.truncate(i);
         }
 
         while lines.first().is_some_and(|l| l.trim().is_empty()) {
@@ -206,7 +212,6 @@ fn is_epigraph_file(path: &Path) -> bool {
 pub struct Epigraph {
     pub date: NaiveDate,
     pub lines: Vec<String>,
-    pub hash: String,
 }
 
 impl Epigraph {
@@ -227,7 +232,7 @@ impl Epigraph {
         while quote.last().is_some_and(|l| l.trim().is_empty()) {
             quote.pop();
         }
-        Some(Epigraph { date, lines: quote, hash: hash_str(raw) })
+        Some(Epigraph { date, lines: quote })
     }
 }
 
@@ -246,10 +251,10 @@ pub fn scan(dir: &Path) -> Result<Scan> {
             continue;
         }
         if is_epigraph_file(&path) {
-            if let Ok(text) = fs::read_to_string(&path) {
-                if let Some(e) = Epigraph::parse(&text) {
-                    out.epigraphs.push(e);
-                }
+            if let Ok(text) = fs::read_to_string(&path)
+                && let Some(e) = Epigraph::parse(&text)
+            {
+                out.epigraphs.push(e);
             }
             continue;
         }
@@ -296,9 +301,15 @@ mod tests {
     fn night_cutoff() {
         // Monday 12.10.2026 00:17 belongs to Sunday the 11th.
         let s = Signature::parse("- S. 12.10.2026 - 00.17").unwrap();
-        assert_eq!(s.effective_date(t(5, 0)), NaiveDate::from_ymd_opt(2026, 10, 11).unwrap());
+        assert_eq!(
+            s.effective_date(t(5, 0)),
+            NaiveDate::from_ymd_opt(2026, 10, 11).unwrap()
+        );
         let s = Signature::parse("- S. 12.10.2026").unwrap();
-        assert_eq!(s.effective_date(t(5, 0)), NaiveDate::from_ymd_opt(2026, 10, 12).unwrap());
+        assert_eq!(
+            s.effective_date(t(5, 0)),
+            NaiveDate::from_ymd_opt(2026, 10, 12).unwrap()
+        );
     }
 
     #[test]
@@ -306,7 +317,10 @@ mod tests {
         let raw = "Liman\n\nKıyıda beklerken,\n    Martılar\n\nSon.\n\n- Deniz Yalın. 13.10.2026 - 22.58\n";
         let p = Poem::parse(Path::new("/x/Liman"), raw);
         assert_eq!(p.title, "Liman");
-        assert_eq!(p.body, vec!["Kıyıda beklerken,", "    Martılar", "", "Son."]);
+        assert_eq!(
+            p.body,
+            vec!["Kıyıda beklerken,", "    Martılar", "", "Son."]
+        );
         assert!(p.signature.is_some());
         assert_eq!(p.status("deniz yalın"), Status::Published);
         assert!(matches!(p.status("Someone"), Status::Foreign(_)));

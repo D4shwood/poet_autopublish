@@ -5,8 +5,6 @@ use std::collections::BTreeMap;
 /// One weekly volume: the published poems of one Monday–Sunday ISO week.
 #[derive(Debug, Clone)]
 pub struct Week {
-    pub year: i32,
-    pub week: u32,
     /// Effective date of the first poem; names the volume.
     pub first_date: NaiveDate,
     /// Oldest first.
@@ -17,15 +15,14 @@ pub struct Week {
     pub file_name: String,
 }
 
-impl Week {
-    /// "2026-W42"
-    pub fn key(&self) -> String {
-        format!("{}-W{:02}", self.year, self.week)
-    }
-}
-
 /// Groups published poems into weeks, oldest week first.
-pub fn group(poems: &[Poem], epigraphs: &[Epigraph], author: &str, cutoff: NaiveTime, series: &str) -> Vec<Week> {
+pub fn group(
+    poems: &[Poem],
+    epigraphs: &[Epigraph],
+    author: &str,
+    cutoff: NaiveTime,
+    series: &str,
+) -> Vec<Week> {
     let mut by_week: BTreeMap<(i32, u32), Vec<Poem>> = BTreeMap::new();
     for p in poems {
         if p.status(author) != Status::Published {
@@ -33,7 +30,10 @@ pub fn group(poems: &[Poem], epigraphs: &[Epigraph], author: &str, cutoff: Naive
         }
         let sig = p.signature.as_ref().unwrap();
         let iso = sig.effective_date(cutoff).iso_week();
-        by_week.entry((iso.year(), iso.week())).or_default().push(p.clone());
+        by_week
+            .entry((iso.year(), iso.week()))
+            .or_default()
+            .push(p.clone());
     }
 
     let mut weeks: Vec<Week> = by_week
@@ -53,14 +53,25 @@ pub fn group(poems: &[Poem], epigraphs: &[Epigraph], author: &str, cutoff: Naive
                 })
                 .max_by_key(|e| e.date)
                 .cloned();
-            Week { year, week, first_date, poems, number: i + 1, epigraph, file_name: String::new() }
+            Week {
+                first_date,
+                poems,
+                number: i + 1,
+                epigraph,
+                file_name: String::new(),
+            }
         })
         .collect();
 
     // contra_noir_DD_MM_week.pdf; the year is added only if two weeks would collide.
     let prefix = slug(series);
     let base = |w: &Week| {
-        format!("{}_{:02}_{:02}_week", prefix, w.first_date.day(), w.first_date.month())
+        format!(
+            "{}_{:02}_{:02}_week",
+            prefix,
+            w.first_date.day(),
+            w.first_date.month()
+        )
     };
     let names: Vec<String> = weeks.iter().map(base).collect();
     for (i, w) in weeks.iter_mut().enumerate() {
@@ -143,7 +154,10 @@ mod tests {
         ];
         let weeks = group(&poems, &[], "S", cutoff, "Contra Noir");
         assert_eq!(weeks.len(), 1);
-        assert_eq!(weeks[0].key(), "2026-W53");
+        assert_eq!(
+            weeks[0].first_date,
+            NaiveDate::from_ymd_opt(2026, 12, 31).unwrap()
+        );
     }
 
     #[test]

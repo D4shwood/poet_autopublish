@@ -12,8 +12,18 @@ const TR_MONTHS: [&str; 12] = [
     "Kasım", "Aralık",
 ];
 const EN_MONTHS: [&str; 12] = [
-    "January", "February", "March", "April", "May", "June", "July", "August", "September",
-    "October", "November", "December",
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
 ];
 
 const TR_STOPWORDS: [&str; 16] = [
@@ -31,7 +41,10 @@ pub fn is_turkish(text: &str) -> bool {
         .filter(|w| !w.is_empty())
         .map(|w| w.to_lowercase())
         .collect();
-    let hits = words.iter().filter(|w| TR_STOPWORDS.contains(&w.as_str())).count();
+    let hits = words
+        .iter()
+        .filter(|w| TR_STOPWORDS.contains(&w.as_str()))
+        .count();
     hits >= 2
 }
 
@@ -45,7 +58,11 @@ pub fn resolve(setting: &str, poems: &[Poem]) -> Lang {
                 return Lang::En;
             }
             let tr = poems.iter().filter(|p| is_turkish(&p.raw)).count();
-            if tr * 2 > poems.len() { Lang::Tr } else { Lang::En }
+            if tr * 2 > poems.len() {
+                Lang::Tr
+            } else {
+                Lang::En
+            }
         }
     }
 }
@@ -108,7 +125,10 @@ impl Lang {
             "poems" => ("Şiirler", "Poems"),
             "log" => ("Kayıt", "Log"),
             "watch_service" => ("● servis izliyor", "● service watching"),
-            "watch_tui" => ("◐ TUI izliyor — w: servisi kur", "◐ TUI watching — w: install service"),
+            "watch_tui" => (
+                "◐ TUI izliyor — w: servisi kur",
+                "◐ TUI watching — w: install service",
+            ),
             "watch_off" => ("○ izleme kapalı", "○ not watching"),
             "building" => ("derleniyor…", "building…"),
             "keys_main" => (
@@ -122,9 +142,15 @@ impl Lang {
             "unsaved" => ("kaydedilmedi", "unsaved"),
             "draft" => ("taslak", "draft"),
             "signed" => ("imzalı", "signed"),
-            "writer_keys" => ("^S kaydet · ^G imzala · ^T daktilo · Esc geri", "^S save · ^G sign · ^T typewriter · Esc back"),
+            "writer_keys" => (
+                "^S kaydet · ^G imzala · ^T daktilo · Esc geri",
+                "^S save · ^G sign · ^T typewriter · Esc back",
+            ),
             "confirm_sign" => ("İmzalayıp yayımlansın mı? (e/h)", "Sign and publish? (y/n)"),
-            "confirm_force" => ("Her şey yeniden derlensin mi? (e/h)", "Rebuild everything? (y/n)"),
+            "confirm_force" => (
+                "Her şey yeniden derlensin mi? (e/h)",
+                "Rebuild everything? (y/n)",
+            ),
             "confirm_trash" => ("Çöp kutusuna taşınsın mı? (e/h)", "Move to Trash? (y/n)"),
             "search" => ("Ara", "Search"),
             "history" => ("Geçmiş", "History"),
@@ -136,7 +162,10 @@ impl Lang {
                 "1 start · 2 stop · 3 restart · 4 install · Esc back",
             ),
             "empty" => ("(boş)", "(empty)"),
-            "preview_fallback" => ("Terminal görüntü desteklemiyor; PDF açıldı.", "Terminal can't show images; opened the PDF."),
+            "preview_fallback" => (
+                "Terminal görüntü desteklemiyor; PDF açıldı.",
+                "Terminal can't show images; opened the PDF.",
+            ),
             "total" => ("Toplam", "Total"),
             "streak" => ("Seri (gün)", "Streak (days)"),
             "per_week" => ("Haftalık şiir", "Poems per week"),
