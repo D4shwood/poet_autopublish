@@ -26,6 +26,8 @@ pub struct Config {
     pub night_cutoff: String,
     /// Draft-history snapshots kept per poem.
     pub history_keep: usize,
+    /// Program that opens PDFs ("" = the desktop default via xdg-open).
+    pub pdf_viewer: String,
 }
 
 impl Default for Config {
@@ -39,6 +41,7 @@ impl Default for Config {
             lang: "auto".into(),
             night_cutoff: "05:00".into(),
             history_keep: 50,
+            pdf_viewer: String::new(),
         }
     }
 }

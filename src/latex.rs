@@ -169,8 +169,9 @@ fn week_cover(w: &Week, ctx: &Ctx) -> String {
     )
 }
 
-fn colophon(label: &str, date: Option<NaiveDate>, ctx: &Ctx) -> String {
-    let mut parts = vec![escape(ctx.series), escape(label)];
+/// "Contra Noir · Cilt 2 · derlendi 19 Ekim 2026 · Liberation Serif · poetautopublish"
+pub fn colophon_text(label: &str, date: Option<NaiveDate>, ctx: &Ctx) -> String {
+    let mut parts = vec![ctx.series.to_string(), label.to_string()];
     if let Some(d) = date {
         parts.push(format!(
             "{} {}",
@@ -180,7 +181,14 @@ fn colophon(label: &str, date: Option<NaiveDate>, ctx: &Ctx) -> String {
     }
     parts.push("Liberation Serif".into());
     parts.push("poetautopublish".into());
-    format!("\\colophon{{{}}}\n", parts.join(" · "))
+    parts.join(" · ")
+}
+
+fn colophon(label: &str, date: Option<NaiveDate>, ctx: &Ctx) -> String {
+    format!(
+        "\\colophon{{{}}}\n",
+        escape(&colophon_text(label, date, ctx))
+    )
 }
 
 fn fill(ctx: &Ctx, title: &str, body: &str) -> String {

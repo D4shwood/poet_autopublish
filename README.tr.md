@@ -22,7 +22,7 @@ Programın adı `poetautopublish`, kısa komutu `poet`.
 Rust ve birkaç yaygın paketle birlikte XeLaTeX gerekir. Arch / CachyOS'ta:
 
 ```sh
-sudo pacman -S rust texlive-xetex texlive-latexrecommended texlive-latexextra poppler ttf-liberation
+sudo pacman -S rust texlive-xetex texlive-latexrecommended texlive-latexextra ttf-liberation
 cargo install --git https://github.com/D4shwood/poet_autopublish --root ~/.local
 poetautopublish install
 ```
@@ -107,7 +107,8 @@ Arayüzde:
 | `⏎` | seçili şiiri yazma ekranında aç |
 | `/` | tüm şiirlerde ve geçmişlerinde ara |
 | `h` | seçili şiirin geçmişi |
-| `o` / `p` | PDF'i aç / sayfayı terminalde önizle (Konsole, kitty, WezTerm…) |
+| `p` | sayfaları terminalde metin olarak gör: kapaklar, şiirler, içindekiler, künye (sayfa çevirmek için ← →) |
+| `o` | PDF'i aç (hangi programla açılacağını config'deki `pdf_viewer` belirler) |
 | `b` / `f` | derle / her şeyi baştan derle |
 | `D` | şiiri çöp kutusuna taşı |
 | `s` | istatistikler |

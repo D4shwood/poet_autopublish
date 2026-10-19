@@ -22,7 +22,7 @@ The program is `poetautopublish` (short: `poet`).
 You need Rust and XeLaTeX with a few common packages. On Arch / CachyOS:
 
 ```sh
-sudo pacman -S rust texlive-xetex texlive-latexrecommended texlive-latexextra poppler ttf-liberation
+sudo pacman -S rust texlive-xetex texlive-latexrecommended texlive-latexextra ttf-liberation
 cargo install --git https://github.com/D4shwood/poet_autopublish --root ~/.local
 poetautopublish install
 ```
@@ -102,7 +102,8 @@ In the interface:
 | `⏎` | open the selected poem in the writing screen |
 | `/` | search all poems and their history |
 | `h` | history of the selected poem |
-| `o` / `p` | open the PDF / preview the page in the terminal (Konsole, kitty, WezTerm…) |
+| `p` | proof the pages as text in the terminal: covers, poems, contents, colophon (← → to turn pages) |
+| `o` | open the PDF (set `pdf_viewer` in the config to choose the program) |
 | `b` / `f` | build / force a full rebuild |
 | `D` | move the poem to the Trash |
 | `s` | statistics |

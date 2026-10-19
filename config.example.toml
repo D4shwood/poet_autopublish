@@ -16,3 +16,6 @@ lang = "auto"
 night_cutoff = "05:00"
 # Draft-history snapshots kept per poem.
 history_keep = 50
+# Program that opens PDFs with `o` ("" = the desktop default via xdg-open),
+# e.g. "okular", "evince" or "firefox".
+pdf_viewer = ""
