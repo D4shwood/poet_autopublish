@@ -143,6 +143,7 @@ impl Lang {
                 "⏎ save · empty = default name · Esc cancel",
             ),
             "weeks" => ("Haftalar", "Weeks"),
+            "collections" => ("Koleksiyonlar", "Collections"),
             "poems" => ("Şiirler", "Poems"),
             "log" => ("Kayıt", "Log"),
             "watch_service" => ("● servis izliyor", "● service watching"),

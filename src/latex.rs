@@ -1,9 +1,10 @@
 use crate::lang::Lang;
 use crate::poem::Poem;
-use crate::volume::Week;
+use crate::volume::{Collection, Week};
 use chrono::NaiveDate;
 use std::collections::{BTreeSet, HashMap};
 
+#[derive(Clone, Copy)]
 pub struct Ctx<'a> {
     pub template: &'a str,
     pub series: &'a str,
@@ -171,7 +172,10 @@ fn week_cover(w: &Week, ctx: &Ctx) -> String {
 
 /// "Contra Noir · Cilt 2 · derlendi 19 Ekim 2026 · Liberation Serif · poetautopublish"
 pub fn colophon_text(label: &str, date: Option<NaiveDate>, ctx: &Ctx) -> String {
-    let mut parts = vec![ctx.series.to_string(), label.to_string()];
+    let mut parts = vec![ctx.series.to_string()];
+    if !label.is_empty() {
+        parts.push(label.to_string());
+    }
     if let Some(d) = date {
         parts.push(format!(
             "{} {}",
@@ -249,6 +253,29 @@ pub fn book_doc(weeks: &[Week], ctx: &Ctx) -> String {
     body.push_str(&colophon(ctx.lang.t("all_poems"), date, ctx));
     let title = format!("{} — {}", ctx.series, ctx.lang.t("all_poems"));
     fill(ctx, &title, &body)
+}
+
+/// A collection outside the weekly series: the folder name is the title,
+/// and the colophon and PDF subject name the collection instead of the series.
+pub fn collection_doc(c: &Collection, ctx: &Ctx) -> String {
+    let ctx = Ctx {
+        series: &c.name,
+        ..*ctx
+    };
+    let mut body = format!(
+        "\\cover{{{}}}{{{}}}{{}}{{{}}}{{}}\n",
+        escape(&c.name),
+        escape(ctx.author),
+        ctx.lang.poem_count(c.poems.len()),
+    );
+    if c.poems.len() > 1 {
+        body.push_str("\\tableofcontents\n");
+    }
+    for p in &c.poems {
+        body.push_str(&poem_page(p, &ctx, true));
+    }
+    body.push_str(&colophon("", compiled_date(c.poems.iter(), &ctx), &ctx));
+    fill(&ctx, &c.name, &body)
 }
 
 #[cfg(test)]

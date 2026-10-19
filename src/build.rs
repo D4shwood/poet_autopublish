@@ -161,6 +161,8 @@ pub fn lock(out_dir: &Path) -> Result<File> {
 pub struct Library {
     pub scan: poem::Scan,
     pub weeks: Vec<Week>,
+    /// Books of the subfolders, outside the weekly series.
+    pub collections: Vec<volume::Collection>,
     pub lang: Lang,
     pub book: String,
 }
@@ -179,9 +181,11 @@ pub fn library(cfg: &Config, poems_dir: &Path) -> Result<Library> {
     for w in &mut weeks {
         w.name = names.get(&w.key).cloned();
     }
+    let collections = volume::collections(&scan.collections, &cfg.author);
     Ok(Library {
         scan,
         weeks,
+        collections,
         lang,
         book: volume::book_file_name(&cfg.series),
     })
@@ -199,7 +203,7 @@ pub fn build(cfg: &Config, poems_dir: Option<&Path>, force: bool) -> Result<Repo
     let mut report = Report::default();
     let today = Local::now().date_naive();
 
-    for p in &lib.scan.poems {
+    for p in lib.scan.all_poems() {
         let _ = history::snapshot(&p.file_name, &p.raw, cfg.history_keep);
         match p.status(&cfg.author) {
             Status::Unsigned => report.unsigned.push(p.file_name.clone()),
@@ -211,7 +215,12 @@ pub fn build(cfg: &Config, poems_dir: Option<&Path>, force: bool) -> Result<Repo
 
     // Revision tracking for published poems.
     let mut state = State::load(&out_dir);
-    let published: Vec<&poem::Poem> = lib.weeks.iter().flat_map(|w| w.poems.iter()).collect();
+    let published: Vec<&poem::Poem> = lib
+        .weeks
+        .iter()
+        .flat_map(|w| w.poems.iter())
+        .chain(lib.collections.iter().flat_map(|c| c.poems.iter()))
+        .collect();
     state
         .poems
         .retain(|k, _| published.iter().any(|p| &p.file_name == k));
@@ -253,6 +262,9 @@ pub fn build(cfg: &Config, poems_dir: Option<&Path>, force: bool) -> Result<Repo
         .collect();
     if !lib.weeks.is_empty() {
         wanted.push((lib.book.clone(), latex::book_doc(&lib.weeks, &ctx), 2));
+    }
+    for c in &lib.collections {
+        wanted.push((c.file_name.clone(), latex::collection_doc(c, &ctx), 2));
     }
 
     let mut outputs = BTreeMap::new();
