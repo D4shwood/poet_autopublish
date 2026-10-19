@@ -132,6 +132,16 @@ impl Lang {
             "unsigned" => ("⚠ İmzasız", "⚠ Unsigned"),
             "drafts" => ("✎ Taslaklar", "✎ Drafts"),
             "stats" => ("▤ İstatistikler", "▤ Statistics"),
+            "quit_item" => ("End Noir", "End Noir"),
+            "quitting" => (
+                "Kapanıyor… derleme bitince çıkılacak.",
+                "Quitting… waiting for the build to finish.",
+            ),
+            "rename" => ("Haftanın yeni adı", "New name for the week"),
+            "rename_keys" => (
+                "⏎ kaydet · boş = varsayılan ad · Esc vazgeç",
+                "⏎ save · empty = default name · Esc cancel",
+            ),
             "weeks" => ("Haftalar", "Weeks"),
             "poems" => ("Şiirler", "Poems"),
             "log" => ("Kayıt", "Log"),
@@ -143,8 +153,8 @@ impl Lang {
             "watch_off" => ("○ izleme kapalı", "○ not watching"),
             "building" => ("derleniyor…", "building…"),
             "keys_main" => (
-                "n yeni · ⏎ aç · / ara · h geçmiş · o pdf · p önizle · b derle · f zorla · D çöpe · s istatistik · w izleyici · l kayıt · q çık",
-                "n new · ⏎ open · / search · h history · o pdf · p preview · b build · f force · D trash · s stats · w watcher · l log · q quit",
+                "n yeni · ⏎ aç · r haftayı adlandır · / ara · h geçmiş · o pdf · p önizle · b derle · f zorla · D çöpe · s istatistik · w izleyici · l kayıt · q çık",
+                "n new · ⏎ open · r rename week · / search · h history · o pdf · p preview · b build · f force · D trash · s stats · w watcher · l log · q quit",
             ),
             "lines" => ("mısra", "lines"),
             "words" => ("kelime", "words"),

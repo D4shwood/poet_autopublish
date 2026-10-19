@@ -161,7 +161,7 @@ fn week_cover(w: &Week, ctx: &Ctx) -> String {
     format!(
         "\\cover{{{}}}{{{}}}{{{}}}{{{} · {}}}{{{}}}\n",
         escape(ctx.series),
-        escape(&ctx.lang.week_label(w.first_date)),
+        escape(&w.label(ctx.lang)),
         escape(ctx.author),
         ctx.lang.volume(w.number),
         ctx.lang.poem_count(w.poems.len()),
@@ -210,7 +210,7 @@ pub fn week_doc(w: &Week, ctx: &Ctx) -> String {
         compiled_date(w.poems.iter(), ctx),
         ctx,
     ));
-    let title = format!("{} — {}", ctx.series, ctx.lang.week_label(w.first_date));
+    let title = format!("{} — {}", ctx.series, w.label(ctx.lang));
     fill(ctx, &title, &body)
 }
 
@@ -230,7 +230,7 @@ pub fn book_doc(weeks: &[Week], ctx: &Ctx) -> String {
         body.push_str(&format!(
             "\\addcontentsline{{toc}}{{section}}{{{} — {}}}\n",
             ctx.lang.volume(w.number),
-            escape(&ctx.lang.week_label(w.first_date))
+            escape(&w.label(ctx.lang))
         ));
         body.push_str(&week_cover(w, ctx));
         for p in &w.poems {

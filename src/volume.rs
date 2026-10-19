@@ -1,3 +1,4 @@
+use crate::lang::Lang;
 use crate::poem::{Epigraph, Poem, Status};
 use chrono::{Datelike, NaiveDate, NaiveTime};
 use std::collections::BTreeMap;
@@ -13,6 +14,19 @@ pub struct Week {
     pub number: usize,
     pub epigraph: Option<Epigraph>,
     pub file_name: String,
+    /// ISO week, "2026-W41"; the key for a custom name.
+    pub key: String,
+    /// A name the user gave the week, replacing "5 Ekim Haftası".
+    pub name: Option<String>,
+}
+
+impl Week {
+    /// The custom name if there is one, else "5 Ekim Haftası" / "Week of 5 October".
+    pub fn label(&self, lang: Lang) -> String {
+        self.name
+            .clone()
+            .unwrap_or_else(|| lang.week_label(self.first_date))
+    }
 }
 
 /// Groups published poems into weeks, oldest week first.
@@ -65,6 +79,8 @@ pub fn group(
                 number: i + 1,
                 epigraph,
                 file_name: String::new(),
+                key: format!("{year}-W{week:02}"),
+                name: None,
             }
         })
         .collect();
@@ -148,6 +164,8 @@ mod tests {
         assert_eq!(titles, vec!["Kum", "Rüzgârda", "Gece"]);
         assert_eq!(weeks[1].file_name, "contra_noir_13_10_week.pdf");
         assert_eq!(weeks[1].number, 2);
+        assert_eq!(weeks[1].key, "2026-W42");
+        assert_eq!(weeks[1].label(Lang::Tr), "13 Ekim Haftası");
 
         // An approximate date goes to its week, after the exactly dated poems.
         let mut more: Vec<Poem> = poems

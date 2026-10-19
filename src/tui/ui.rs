@@ -79,6 +79,9 @@ pub fn draw(f: &mut Frame, app: &mut App) {
             )
         }
         Mode::WatcherMenu => format!("{}: {}", app.t("watcher"), app.t("watcher_menu")),
+        Mode::Rename { input, .. } => {
+            format!("{}: {input}▏   {}", app.t("rename"), app.t("rename_keys"))
+        }
         Mode::Search { .. } => "⏎ · ↑↓ · Esc".into(),
         Mode::History { .. } | Mode::Stats | Mode::Log { .. } => "↑↓ · Esc".into(),
         Mode::Preview => "← → · Esc".into(),
@@ -87,7 +90,16 @@ pub fn draw(f: &mut Frame, app: &mut App) {
             None => app.t("keys_main").into(),
         },
     };
-    let style = if matches!(app.mode, Mode::Confirm(_) | Mode::WatcherMenu) {
+    let hint = if app.quitting {
+        app.t("quitting").to_string()
+    } else {
+        hint
+    };
+    let style = if app.quitting
+        || matches!(
+            app.mode,
+            Mode::Confirm(_) | Mode::WatcherMenu | Mode::Rename { .. }
+        ) {
         Style::default().fg(ACCENT).add_modifier(Modifier::BOLD)
     } else {
         Style::default().fg(MUTED)
@@ -132,22 +144,22 @@ fn item_label(app: &App, item: Item) -> String {
         Item::ContinueDraft => app.t("continue_draft").into(),
         Item::Week(i) => {
             let w = &app.lib.weeks[i];
-            format!(
-                "  {}  ({})",
-                app.lang().week_label(w.first_date),
-                w.poems.len()
-            )
+            format!("  {}  ({})", w.label(app.lang()), w.poems.len())
         }
         Item::All => format!("  {}  ({})", app.t("all_poems"), app.count(item)),
         Item::Unsigned => format!("{}  ({})", app.t("unsigned"), app.count(item)),
         Item::Drafts => format!("{}  ({})", app.t("drafts"), app.count(item)),
         Item::Stats => app.t("stats").into(),
+        Item::Quit => app.t("quit_item").into(),
     }
 }
 
 fn draw_left(f: &mut Frame, area: Rect, app: &App) {
-    let focused =
-        !app.focus_right && matches!(app.mode, Mode::Main | Mode::Confirm(_) | Mode::WatcherMenu);
+    let focused = !app.focus_right
+        && matches!(
+            app.mode,
+            Mode::Main | Mode::Confirm(_) | Mode::WatcherMenu | Mode::Rename { .. }
+        );
     let mut lines = vec![];
     for (i, item) in app.items.iter().enumerate() {
         // A faint rule between the actions, the volumes and the rest.
@@ -159,6 +171,9 @@ fn draw_left(f: &mut Frame, area: Rect, app: &App) {
                 format!(" {}", app.t("weeks")),
                 Style::default().fg(FAINT),
             )));
+        }
+        if *item == Item::Quit {
+            lines.push(Line::from(""));
         }
         if *item == Item::Unsigned {
             lines.push(Line::from(""));

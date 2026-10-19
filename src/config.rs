@@ -1,6 +1,7 @@
 use anyhow::{Context, Result};
 use chrono::NaiveTime;
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -131,4 +132,29 @@ pub fn log_path() -> PathBuf {
 
 pub fn ensure_dir(p: &Path) -> Result<()> {
     fs::create_dir_all(p).with_context(|| format!("creating {}", p.display()))
+}
+
+/// Custom week names, keyed by ISO week ("2026-W41"), in weeks.toml.
+pub fn week_names() -> BTreeMap<String, String> {
+    fs::read_to_string(config_dir().join("weeks.toml"))
+        .ok()
+        .and_then(|t| toml::from_str(&t).ok())
+        .unwrap_or_default()
+}
+
+/// Sets a week's name; an empty name restores the default.
+pub fn set_week_name(key: &str, name: &str) -> Result<()> {
+    let mut names = week_names();
+    let name = name.trim();
+    if name.is_empty() {
+        names.remove(key);
+    } else {
+        names.insert(key.to_string(), name.to_string());
+    }
+    fs::create_dir_all(config_dir())?;
+    fs::write(
+        config_dir().join("weeks.toml"),
+        toml::to_string_pretty(&names)?,
+    )?;
+    Ok(())
 }
