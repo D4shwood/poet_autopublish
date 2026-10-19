@@ -103,7 +103,6 @@ pub struct Poem {
     pub signature: Option<Signature>,
     pub draft: bool,
     pub raw: String,
-    pub hash: String,
 }
 
 impl Poem {
@@ -155,7 +154,6 @@ impl Poem {
             body: lines,
             signature,
             draft,
-            hash: hash_str(&raw),
             raw,
         }
     }
@@ -169,6 +167,11 @@ impl Poem {
             Some(sig) if !same_author(&sig.author, author) => Status::Foreign(sig.author.clone()),
             Some(_) => Status::Published,
         }
+    }
+
+    /// Hash of the title and body, ignoring the signature and draft tag.
+    pub fn body_hash(&self) -> String {
+        hash_str(&format!("{}\n{}", self.title, self.body.join("\n")))
     }
 
     pub fn word_count(&self) -> usize {
@@ -347,6 +350,16 @@ mod tests {
         assert!(p.signature.is_some());
         assert_eq!(p.status("deniz yalın"), Status::Published);
         assert!(matches!(p.status("Someone"), Status::Foreign(_)));
+    }
+
+    #[test]
+    fn signature_edits_keep_body_hash() {
+        let a = Poem::parse(Path::new("B10"), "B10\n\nB01\n-Deniz Yalın xx.10.2026\n");
+        let b = Poem::parse(Path::new("B10"), "B10\n\nB01\n-Deniz Yalın ~8.10.2026 \n");
+        assert_ne!(a.raw, b.raw);
+        // a's "xx" line isn't a signature, so it is still part of a's body.
+        let c = Poem::parse(Path::new("B10"), "B10\n\nB01\n-Deniz Yalın 09.10.2026\n");
+        assert_eq!(b.body_hash(), c.body_hash());
     }
 
     #[test]

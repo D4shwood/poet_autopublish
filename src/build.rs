@@ -31,10 +31,15 @@ pub struct State {
     pub poems: BTreeMap<String, PoemState>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct PoemState {
-    pub first_hash: String,
-    pub last_hash: String,
+    /// Hashes of the title and body only, so fixing a signature isn't a revision.
+    /// (Older state files stored whole-file hashes under other names; those
+    /// entries load empty here and simply start over.)
+    #[serde(default)]
+    pub first_body: String,
+    #[serde(default)]
+    pub last_body: String,
     pub revised: Option<NaiveDate>,
 }
 
@@ -208,17 +213,18 @@ pub fn build(cfg: &Config, poems_dir: Option<&Path>, force: bool) -> Result<Repo
         .retain(|k, _| published.iter().any(|p| &p.file_name == k));
     for p in &published {
         let sig_date = p.signature.as_ref().unwrap().date;
-        let entry = state
-            .poems
-            .entry(p.file_name.clone())
-            .or_insert_with(|| PoemState {
-                first_hash: p.hash.clone(),
-                last_hash: p.hash.clone(),
+        let body = p.body_hash();
+        let entry = state.poems.entry(p.file_name.clone()).or_default();
+        if entry.first_body.is_empty() {
+            *entry = PoemState {
+                first_body: body.clone(),
+                last_body: body.clone(),
                 revised: None,
-            });
-        if entry.last_hash != p.hash {
-            entry.last_hash = p.hash.clone();
-            if entry.last_hash == entry.first_hash {
+            };
+        }
+        if entry.last_body != body {
+            entry.last_body = body;
+            if entry.last_body == entry.first_body {
                 entry.revised = None;
             } else if today > sig_date + Duration::days(1) {
                 entry.revised = Some(today);
