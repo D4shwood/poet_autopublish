@@ -28,6 +28,9 @@ pub struct Config {
     pub history_keep: usize,
     /// Program that opens PDFs ("" = the desktop default via xdg-open).
     pub pdf_viewer: String,
+    /// Keep the poems folder (a git repo) in step with its remote, and push
+    /// the PDFs to its `pdf` branch.
+    pub sync: bool,
 }
 
 impl Default for Config {
@@ -42,6 +45,7 @@ impl Default for Config {
             night_cutoff: "05:00".into(),
             history_keep: 50,
             pdf_viewer: String::new(),
+            sync: false,
         }
     }
 }

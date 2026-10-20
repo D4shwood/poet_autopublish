@@ -19,3 +19,7 @@ history_keep = 50
 # Program that opens PDFs with `o` ("" = the desktop default via xdg-open),
 # e.g. "okular", "evince" or "firefox".
 pdf_viewer = ""
+# Keep the poems folder in step with its git remote (e.g. a private GitHub
+# repo) from the background service: poems written elsewhere arrive and get
+# built, and the PDFs are pushed to the remote's `pdf` branch.
+sync = false
