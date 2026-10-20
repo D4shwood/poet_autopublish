@@ -41,6 +41,10 @@ pub(super) fn panel(title: &str, focused: bool) -> Block<'_> {
 pub fn draw(f: &mut Frame, app: &mut App) {
     let area = f.area();
     f.render_widget(Block::default().style(base()), area);
+    if let Mode::Setup(s) = &app.mode {
+        super::setup::draw(f, area, s);
+        return;
+    }
     if let Mode::Writer(ed) = &mut app.mode {
         draw_writer(f, area, ed, app.lib.lang);
         return;
@@ -227,6 +231,7 @@ fn item_label(app: &App, item: Item) -> String {
         Item::Drafts => format!("{}  ({})", app.t("drafts"), app.count(item)),
         Item::Stats => app.t("stats").into(),
         Item::Signatures => app.t("signatures").into(),
+        Item::Settings => app.t("settings").into(),
         Item::Quit => app.t("quit_item").into(),
     }
 }

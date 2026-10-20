@@ -41,6 +41,8 @@ pub enum Item {
     Stats,
     /// Authors, pen names and signature counts.
     Signatures,
+    /// Reopens the setup screens.
+    Settings,
     Quit,
 }
 
@@ -81,6 +83,8 @@ pub enum Mode {
     Preview,
     Confirm(Confirm),
     WatcherMenu,
+    /// The setup screens, reopened from ⚙ Ayarlar.
+    Setup(Box<super::setup::Setup>),
     /// The İmzalar screen; `sel` is the highlighted row.
     Signatures {
         sel: usize,
@@ -225,6 +229,7 @@ impl App {
         items.push(Item::Drafts);
         items.push(Item::Stats);
         items.push(Item::Signatures);
+        items.push(Item::Settings);
         items.push(Item::Quit);
         self.items = items;
         self.left = self.left.min(self.items.len() - 1);
@@ -383,7 +388,9 @@ impl App {
                 v.sort_by_key(|p| std::cmp::Reverse(mtime(&p.path)));
                 v
             }
-            Item::Stats | Item::Signatures | Item::Quit | Item::NewCollection => vec![],
+            Item::Stats | Item::Signatures | Item::Settings | Item::Quit | Item::NewCollection => {
+                vec![]
+            }
         }
     }
 
@@ -589,9 +596,29 @@ impl App {
         self.space_poems().into_iter().cloned().collect()
     }
 
+    /// After ⚙ Ayarlar: new folders, name or series take effect right away.
+    fn apply_settings(&mut self, cfg: Config) {
+        self.cfg = cfg;
+        self.space = None;
+        self.left = 0;
+        self.right = 0;
+        self.focus_right = false;
+        // The poems folder may have moved: watch the new one, and let the
+        // service pick it up too.
+        self.tui_watch = None;
+        if install::service_active() {
+            let _ = install::service("restart");
+        }
+        self.refresh();
+        self.check_service();
+        self.start_build(false);
+        build::log("settings saved");
+    }
+
     pub fn on_paste(&mut self, s: &str) {
         let pool = self.search_pool();
         match &mut self.mode {
+            Mode::Setup(setup) => setup.paste(s),
             Mode::Writer(ed) => {
                 ed.insert_str(s);
             }
@@ -698,6 +725,20 @@ impl App {
                 (Mode::Preview, Action::None)
             }
             Mode::Signatures { sel } => (super::signatures::key(self, sel, k), Action::None),
+            Mode::Setup(mut s) => match s.key(k) {
+                super::setup::Outcome::Stay => (Mode::Setup(s), Action::None),
+                super::setup::Outcome::Cancel => (Mode::Main, Action::None),
+                super::setup::Outcome::Done => match s.apply(install::service_active()) {
+                    Ok(cfg) => {
+                        self.apply_settings(cfg);
+                        (Mode::Main, Action::None)
+                    }
+                    Err(e) => {
+                        s.set_error(format!("{e:#}"));
+                        (Mode::Setup(s), Action::None)
+                    }
+                },
+            },
             Mode::AuthorPrompt { step, input, back } => (
                 super::signatures::key_prompt(self, step, input, back, k),
                 Action::None,
@@ -841,6 +882,14 @@ impl App {
                         }
                         Item::Stats => self.mode = Mode::Stats,
                         Item::Signatures => self.mode = Mode::Signatures { sel: 0 },
+                        Item::Settings => {
+                            self.mode = Mode::Setup(Box::new(super::setup::Setup::from_current(
+                                &self.cfg,
+                                &self.lib.authors,
+                                self.lang(),
+                                install::service_active(),
+                            )))
+                        }
                         Item::Quit => self.quitting = true,
                         Item::NewCollection => {
                             self.mode = Mode::NewCollection {

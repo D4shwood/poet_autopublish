@@ -94,6 +94,12 @@ pub fn install() -> Result<Vec<String>> {
     Ok(done)
 }
 
+/// Stops the background service but keeps the `poet` command and menu entry.
+pub fn disable_service() -> Result<()> {
+    systemctl(&["disable", "--now", SERVICE])?;
+    Ok(())
+}
+
 pub fn uninstall() -> Result<Vec<String>> {
     let mut done = vec![];
     let _ = systemctl(&["disable", "--now", SERVICE]);

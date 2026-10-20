@@ -51,19 +51,32 @@ impl Config {
         config_dir().join("config.toml")
     }
 
-    /// Loads the config, writing a default one on first run.
+    /// Whether the first-run setup has been done.
+    pub fn exists() -> bool {
+        Self::path().exists()
+    }
+
+    /// Loads the config. There is no silent default: who the user is comes from
+    /// the setup that `poet` runs the first time.
     pub fn load() -> Result<Config> {
         let path = Self::path();
         if !path.exists() {
-            fs::create_dir_all(config_dir())?;
-            let text = toml::to_string_pretty(&Config::default())?;
-            fs::write(&path, text)?;
+            anyhow::bail!(
+                "not set up yet: run `poet` (or `poetautopublish`) once to set up.\n\
+                 henüz kurulum yapılmadı: önce bir kez `poet` çalıştır."
+            );
         }
         let text =
             fs::read_to_string(&path).with_context(|| format!("reading {}", path.display()))?;
         let cfg: Config =
             toml::from_str(&text).with_context(|| format!("parsing {}", path.display()))?;
         Ok(cfg)
+    }
+
+    pub fn save(&self) -> Result<()> {
+        fs::create_dir_all(config_dir())?;
+        fs::write(Self::path(), toml::to_string_pretty(self)?)?;
+        Ok(())
     }
 
     pub fn poems_dir(&self) -> PathBuf {

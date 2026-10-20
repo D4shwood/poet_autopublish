@@ -24,19 +24,27 @@ Rust ve birkaç yaygın paketle birlikte XeLaTeX gerekir. Arch / CachyOS'ta:
 ```sh
 sudo pacman -S rust texlive-xetex texlive-latexrecommended texlive-latexextra ttf-liberation
 cargo install --git https://github.com/D4shwood/poet_autopublish --root ~/.local
-poetautopublish install
+poetautopublish
 ```
 
-`install` şunları kurar:
-- şiir klasörün her değiştiğinde PDF'leri yeniden derleyen bir systemd kullanıcı servisi,
-- `~/.local/bin` içine `poet` komutu,
-- *Yeni şiir* eylemli bir menü girdisi.
+İlk açılışta program seni adım adım tanır:
+1. imzalarken kullandığın adın
+2. rumuzların
+3. şiir klasörü ve PDF klasörü (yoksa oluşturulur)
+4. haftalık serinin adı
+5. arka planda kendiliğinden derlensin mi
+
+Son adıma evet dersen şunlar kurulur:
+- şiir klasörün her değiştiğinde PDF'leri yeniden derleyen bir systemd kullanıcı servisi
+- `~/.local/bin` içine `poet` komutu
+- *Yeni şiir* eylemli bir menü girdisi
 
 `poetautopublish uninstall` bunların hepsini kaldırır.
 
-İlk çalıştırmada `~/.config/poetautopublish/config.toml` oluşturulur. En
-azından `author` (imzaladığın adın tam hali) ve `poems_dir` ayarlarını yap. Tüm
-seçenekler için [config.example.toml](config.example.toml) dosyasına bak.
+Menüdeki **⚙ Ayarlar** aynı ekranları cevapların dolu haliyle tekrar açar.
+Cevaplar `~/.config/poetautopublish/config.toml` ve `authors.toml` dosyalarına
+kaydedilir. Tüm seçenekler için [config.example.toml](config.example.toml)
+dosyasına bak.
 
 ## Şiir dosyaları
 
