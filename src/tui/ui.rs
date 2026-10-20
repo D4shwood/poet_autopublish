@@ -87,6 +87,11 @@ pub fn draw(f: &mut Frame, app: &mut App) {
         Mode::Rename { input, .. } => {
             format!("{}: {input}▏   {}", app.t("rename"), app.t("rename_keys"))
         }
+        Mode::NewCollection { input } => format!(
+            "{}: {input}▏   {}",
+            app.t("collection_name"),
+            app.t("collection_keys")
+        ),
         Mode::Search { .. } => "⏎ · ↑↓ · Esc".into(),
         Mode::History { .. } | Mode::Stats | Mode::Log { .. } => "↑↓ · Esc".into(),
         #[cfg(feature = "preview")]
@@ -104,7 +109,7 @@ pub fn draw(f: &mut Frame, app: &mut App) {
     let style = if app.quitting
         || matches!(
             app.mode,
-            Mode::Confirm(_) | Mode::WatcherMenu | Mode::Rename { .. }
+            Mode::Confirm(_) | Mode::WatcherMenu | Mode::Rename { .. } | Mode::NewCollection { .. }
         ) {
         Style::default().fg(ACCENT).add_modifier(Modifier::BOLD)
     } else {
@@ -154,9 +159,9 @@ fn item_label(app: &App, item: Item) -> String {
         }
         Item::All => format!("  {}  ({})", app.t("all_poems"), app.count(item)),
         Item::Collection(i) => {
-            let c = &app.lib.collections[i];
-            format!("  {}  ({})", c.name, c.poems.len())
+            format!("  {}  ({})", app.lib.scan.collections[i].0, app.count(item))
         }
+        Item::NewCollection => format!("  {}", app.t("new_collection")),
         Item::Unsigned => format!("{}  ({})", app.t("unsigned"), app.count(item)),
         Item::Drafts => format!("{}  ({})", app.t("drafts"), app.count(item)),
         Item::Stats => app.t("stats").into(),
@@ -168,7 +173,11 @@ fn draw_left(f: &mut Frame, area: Rect, app: &App) {
     let focused = !app.focus_right
         && matches!(
             app.mode,
-            Mode::Main | Mode::Confirm(_) | Mode::WatcherMenu | Mode::Rename { .. }
+            Mode::Main
+                | Mode::Confirm(_)
+                | Mode::WatcherMenu
+                | Mode::Rename { .. }
+                | Mode::NewCollection { .. }
         );
     let mut lines = vec![];
     for (i, item) in app.items.iter().enumerate() {
@@ -182,7 +191,7 @@ fn draw_left(f: &mut Frame, area: Rect, app: &App) {
                 Style::default().fg(FAINT),
             )));
         }
-        if matches!(item, Item::Collection(_))
+        if matches!(item, Item::Collection(_) | Item::NewCollection)
             && i > 0
             && !matches!(app.items[i - 1], Item::Collection(_))
         {
@@ -310,6 +319,8 @@ fn draw_poem_list(f: &mut Frame, area: Rect, app: &App) {
         let hint = match app.current_item() {
             Item::Stats => "⏎".to_string(),
             Item::NewPoem => format!("⏎  {}", app.t("new_poem")),
+            Item::NewCollection => format!("⏎  {}", app.t("new_collection")),
+            Item::Collection(_) => app.t("new_in_collection").to_string(),
             _ => app.t("empty").to_string(),
         };
         f.render_widget(

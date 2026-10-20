@@ -80,8 +80,13 @@ bir **alt klasörüne** girer (`~/poetry/Eski Şiirler/` gibi). Her alt
 klasör kendi kitabı olur: `eski_siirler.pdf`. Kapağında klasörün adı ve senin
 adın yer alır; bir de içindekiler sayfası vardır. Şiirler alfabetik sıralanır
 ve tıpkı seride olduğu gibi sadece imzalı olanlar yayımlanır. Koleksiyonlar
-haftalık ciltlere ve serinin toplu kitabına karışmaz. Arayüzde *Koleksiyonlar*
-başlığı altında listelenir.
+haftalık ciltlere ve serinin toplu kitabına karışmaz.
+
+Klasörleri elle açman gerekmez. Arayüzde *Koleksiyonlar* başlığı altında boş
+olanlar dahil hepsi listelenir. **+ Yeni koleksiyon** ad sorar ve klasörü
+kendisi açar. Bir koleksiyon seçiliyken `n`'ye basarsan yeni şiir doğrudan o
+koleksiyona yazılır. Koleksiyonun kitabı, içine ilk imzalı şiir girdiğinde
+oluşur.
 
 ## Çıktı
 

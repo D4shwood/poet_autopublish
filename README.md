@@ -76,8 +76,13 @@ Poems that don't belong to the weekly series, such as older work, go into a
 subfolder becomes its own book, `old_poems.pdf`. Its cover carries the folder
 name and your name, and it has a table of contents. Poems are sorted
 alphabetically, and only signed poems are published, as in the series.
-Collections never appear in the weekly volumes or the series book. In the
-interface they are listed under *Collections*.
+Collections never appear in the weekly volumes or the series book.
+
+You don't have to make the folders yourself. In the interface, *Collections*
+lists every collection, including empty ones, and **+ New collection** asks
+for a name and creates the folder. Press `n` with a collection selected to
+write a new poem straight into it. A collection's book appears once it has its
+first signed poem.
 
 ## Output
 

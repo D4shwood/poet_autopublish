@@ -22,6 +22,8 @@ pub struct Editor {
     pub row: usize,
     pub col: usize,
     pub path: Option<PathBuf>,
+    /// Where a new poem is saved: a collection folder, or None for the poems folder.
+    pub dir: Option<PathBuf>,
     pub is_draft: bool,
     pub dirty: bool,
     pub last_saved: Option<DateTime<Local>>,
@@ -44,6 +46,7 @@ impl Editor {
             row: 0,
             col: 0,
             path: None,
+            dir: None,
             is_draft: true,
             dirty: false,
             last_saved: None,
@@ -286,7 +289,7 @@ impl Editor {
                 .parent()
                 .map(Path::to_path_buf)
                 .unwrap_or_else(|| cfg.poems_dir()),
-            None => cfg.poems_dir(),
+            None => self.dir.clone().unwrap_or_else(|| cfg.poems_dir()),
         };
         fs::create_dir_all(&dir)?;
         let wanted = sanitize(self.title());
