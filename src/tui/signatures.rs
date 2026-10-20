@@ -63,7 +63,7 @@ pub fn rows(app: &App) -> Vec<Row> {
 
 /// Saves the table and rebuilds: who counts as "you" decides what is published.
 fn commit(app: &mut App, what: String) {
-    match app.lib.authors.save() {
+    match app.lib.authors.save(&app.cfg.poems_dir()) {
         Ok(()) => {
             build::log(&what);
             app.refresh();

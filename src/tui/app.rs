@@ -788,7 +788,7 @@ impl App {
                 KeyCode::Esc => (Mode::Main, Action::None),
                 KeyCode::Enter => {
                     if let Some(w) = self.lib.weeks.get(idx) {
-                        match crate::config::set_week_name(&w.key, &input) {
+                        match crate::shared::set_week_name(&self.cfg.poems_dir(), &w.key, &input) {
                             Ok(()) => {
                                 build::log(&format!(
                                     "renamed {} to \"{}\"",

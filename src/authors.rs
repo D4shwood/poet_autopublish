@@ -1,12 +1,12 @@
-//! Authors and their pen names, kept in ~/.config/poetautopublish/authors.toml.
+//! Authors and their pen names, kept in `<poems folder>/.poet/authors.toml`.
 //!
 //! The main author (the config's `author`) publishes under their name or any of
 //! their pen names. Poems signed by other authors are tracked but never published.
 
-use crate::config::config_dir;
+use crate::shared;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use std::fs;
+use std::path::Path;
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct Author {
@@ -32,12 +32,6 @@ impl Author {
         (!self.name.trim().is_empty() && norm(&self.name) == s)
             || self.pen_names.iter().any(|p| norm(p) == s)
     }
-}
-
-#[derive(Default, Serialize, Deserialize)]
-struct File {
-    #[serde(default, rename = "author")]
-    authors: Vec<Author>,
 }
 
 #[derive(Debug, Clone)]
@@ -80,24 +74,12 @@ impl Authors {
         Authors { list, main }
     }
 
-    pub fn load(main_name: &str) -> Authors {
-        let file: File = fs::read_to_string(config_dir().join("authors.toml"))
-            .ok()
-            .and_then(|t| toml::from_str(&t).ok())
-            .unwrap_or_default();
-        Authors::new(file.authors, main_name)
+    pub fn load(poems_dir: &Path, main_name: &str) -> Authors {
+        Authors::new(shared::load_authors(poems_dir), main_name)
     }
 
-    pub fn save(&self) -> Result<()> {
-        fs::create_dir_all(config_dir())?;
-        let file = File {
-            authors: self.list.clone(),
-        };
-        fs::write(
-            config_dir().join("authors.toml"),
-            toml::to_string_pretty(&file)?,
-        )?;
-        Ok(())
+    pub fn save(&self, poems_dir: &Path) -> Result<()> {
+        shared::save_authors(poems_dir, &self.list)
     }
 
     /// Which author a signature belongs to.

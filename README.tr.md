@@ -56,9 +56,11 @@ Son adıma evet dersen şunlar kurulur:
 `poetautopublish uninstall` bunların hepsini kaldırır.
 
 Menüdeki **⚙ Ayarlar** aynı ekranları cevapların dolu haliyle tekrar açar.
-Cevaplar `~/.config/poetautopublish/config.toml` ve `authors.toml` dosyalarına
-kaydedilir. Tüm seçenekler için [config.example.toml](config.example.toml)
-dosyasına bak.
+Kim olduğun, rumuzların, diğer yazarlar ve hafta adların şiir klasörünün
+içindeki `.poet/` klasörüne kaydedilir; böylece şiirlerle birlikte başka bir
+bilgisayara ya da telefona gider. Klasörler ve bu bilgisayara özel ayarlar
+`~/.config/poetautopublish/config.toml` dosyasında kalır; tüm seçenekler için
+[config.example.toml](config.example.toml) dosyasına bak.
 
 ## Şiir dosyaları
 
@@ -86,8 +88,8 @@ boş satır yeni bir kıta başlatır.
   rumuzlarını listeler. Kendi adınla ya da rumuzlarından biriyle imzaladığın
   şiirler yayımlanır ve sayfada rumuz görünür. Başka yazarların şiirleri orada
   takip edilir ama yayımlanmaz. Kimseye ait olmayan imzalar da orada çıkar;
-  ⏎ ile bir yazara bağlarsın. Tablo `~/.config/poetautopublish/authors.toml`
-  dosyasında tutulur.
+  ⏎ ile bir yazara bağlarsın. Tablo şiir klasöründeki
+  `.poet/authors.toml` dosyasında tutulur.
 - **Tarih bilinmiyorsa:** tarihsiz bir imza da geçerlidir, yeter ki tanınan bir
   ad ya da rumuzla başlasın: `- K.M Ozan Deniz. Mürekkep #2`. Böyle şiirler
   koleksiyonlara ve Yayınlar ağacına girer, haftalık ciltlere giremez, çünkü
@@ -136,8 +138,8 @@ yıllara göre) sadece o koleksiyonu kapsar. *Diğer alanlar* altındaki
 ## Çıktı
 
 Bir hafta, en erken şiirinin tarihiyle adlandırılır ("5 Ekim Haftası"). Arayüzde
-`r` ile yeniden adlandırabilirsin. Özel adlar
-`~/.config/poetautopublish/weeks.toml` dosyasında tutulur. Kapağı, içindekileri
+`r` ile yeniden adlandırabilirsin. Özel adlar şiir
+klasöründeki `.poet/weeks.toml` dosyasında tutulur. Kapağı, içindekileri
 ve PDF başlığını değiştirir, dosya adını değiştirmez.
 
 Her hafta için haftanın ilk şiirinin adını taşıyan bir
