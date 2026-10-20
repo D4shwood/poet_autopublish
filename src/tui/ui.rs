@@ -506,6 +506,15 @@ fn draw_publications(f: &mut Frame, area: Rect, app: &App) {
         lines.push(Line::from(vec![
             Span::styled(format!("{indent}{:<30}", truncate(&p.title, 30)), style),
             Span::styled(format!(" {when}"), Style::default().fg(FAINT)),
+            // Other authors' poems are archived here but not published.
+            Span::styled(
+                if app.lib.authors.is_main(&sig.author) {
+                    String::new()
+                } else {
+                    format!("  {}", sig.author)
+                },
+                Style::default().fg(MUTED),
+            ),
         ]));
     }
     f.render_widget(Paragraph::new(lines).block(panel(&title, focused)), area);

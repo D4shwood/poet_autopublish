@@ -327,10 +327,17 @@ impl App {
         match item {
             Item::Book => self.space_published(),
             // Sorted journal → issue → title, which is the order the tree is drawn in.
+            // The whole issue as an archive: tracked poems by other authors too.
             Item::Publications => {
                 let mut v: Vec<&Poem> = self
-                    .space_published()
+                    .space_poems()
                     .into_iter()
+                    .filter(|p| {
+                        matches!(
+                            p.status(&self.lib.authors),
+                            Status::Published | Status::Foreign(_)
+                        )
+                    })
                     .filter(|p| {
                         p.signature
                             .as_ref()
