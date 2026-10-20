@@ -12,12 +12,15 @@
 
 ## Ports
 
-- **Windows.** The same terminal app on Windows (Windows Terminal / PowerShell).
-  The TUI already uses crossterm, which runs there; the Linux-only parts need
-  Windows counterparts: the systemd background service (a scheduled task or a
-  tray process instead), the `poet` symlink and the KDE menu entry (a Start menu
-  shortcut), `xdg-open` (the default PDF handler), the freedesktop Trash, and a
-  TeX distribution with XeLaTeX (MiKTeX or TeX Live).
+- **Windows**, so friends can install it easily. In phases:
+  1. ~~Builds and runs on Windows~~ (done): CI tests and builds it; files open
+     with Explorer, Notepad is the fallback editor, file names are Windows-safe,
+     and the app works without TeX (no PDFs yet).
+  2. An installer (.exe: Start menu shortcut, the `poet` command, uninstall
+     entry) and a portable .zip, both built by CI on each release.
+  3. Optional background rebuild at sign-in, with a Task Scheduler task.
+  4. PDFs: a TeX engine that needs no separate install (likely Tectonic,
+     bundled), with the fonts embedded.
 - **Android app.** A mobile app for writing and reading on the phone: the
   writing screen, drafts and signing, and the published PDFs. The poem parsing,
   week grouping and authors logic can be shared as a Rust library; compiling
