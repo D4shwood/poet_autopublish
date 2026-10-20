@@ -58,7 +58,8 @@ jobs:
         shell: pwsh
         run: |
           $dir = "poetautopublish-$env:VERSION-windows"
-          Compress-Archive -Path $dir -DestinationPath "$dir-portable.zip"
+          # 7-Zip stores the names as UTF-8, so "Örnek Şiir" stays readable.
+          7z a -tzip -mcu=on "$dir-portable.zip" $dir | Out-Null
       - name: Installer
         shell: pwsh
         run: |
