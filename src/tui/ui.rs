@@ -221,6 +221,7 @@ fn item_label(app: &App, item: Item) -> String {
         }
         Item::NewCollection => format!("  {}", app.t("new_collection")),
         Item::Book => format!("  {}  ({})", app.t("all_poems"), app.count(item)),
+        Item::Publications => format!("  {}  ({})", app.t("publications"), app.count(item)),
         Item::Series => format!("  ◆ {}  ({})", app.cfg.series, app.count(item)),
         Item::Unsigned => format!("{}  ({})", app.t("unsigned"), app.count(item)),
         Item::Drafts => format!("{}  ({})", app.t("drafts"), app.count(item)),
@@ -376,6 +377,7 @@ fn draw_right(f: &mut Frame, area: Rect, app: &mut App) {
                 view,
             );
         }
+        _ if app.current_item() == Item::Publications => draw_publications(f, area, app),
         _ => draw_poem_list(f, area, app),
     }
 }
@@ -441,6 +443,71 @@ fn draw_poem_list(f: &mut Frame, area: Rect, app: &App) {
             ])
         })
         .collect();
+    f.render_widget(Paragraph::new(lines).block(panel(&title, focused)), area);
+}
+
+/// The space's published poems as a tree: journal → issue / edition → poem.
+fn draw_publications(f: &mut Frame, area: Rect, app: &App) {
+    let focused = app.focus_right;
+    let poems = app.right_poems();
+    let title = format!(
+        "{} · {}",
+        app.space_name(),
+        app.t("publications").trim_start_matches("❖ ")
+    );
+    if poems.is_empty() {
+        f.render_widget(
+            Paragraph::new(Span::styled(
+                format!(" {}", app.t("no_publications")),
+                Style::default().fg(MUTED),
+            ))
+            .block(panel(&title, focused)),
+            area,
+        );
+        return;
+    }
+    let mut lines: Vec<Line> = vec![];
+    let mut last_name: Option<String> = None;
+    let mut last_issue: Option<Option<String>> = None;
+    for (i, p) in poems.iter().enumerate() {
+        let sig = p.signature.as_ref().unwrap();
+        let pubn = sig.publication().unwrap();
+        let issue = pubn.issue_label();
+        if last_name.as_deref() != Some(pubn.name.as_str()) {
+            if last_name.is_some() {
+                lines.push(Line::from(""));
+            }
+            lines.push(Line::from(Span::styled(
+                format!(" {}", pubn.name),
+                Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
+            )));
+            last_name = Some(pubn.name.clone());
+            last_issue = None;
+        }
+        if last_issue.as_ref() != Some(&issue) {
+            if let Some(label) = &issue {
+                lines.push(Line::from(Span::styled(
+                    format!("    {label}"),
+                    Style::default().fg(MUTED),
+                )));
+            }
+            last_issue = Some(issue.clone());
+        }
+        let indent = if issue.is_some() { "       " } else { "    " };
+        let style = if focused && i == app.right {
+            Style::default().fg(BG).bg(ACCENT)
+        } else {
+            Style::default().fg(FG)
+        };
+        let mut when = sig.date.format("%d.%m.%Y").to_string();
+        if sig.approx {
+            when.insert(0, '~');
+        }
+        lines.push(Line::from(vec![
+            Span::styled(format!("{indent}{:<30}", truncate(&p.title, 30)), style),
+            Span::styled(format!(" {when}"), Style::default().fg(FAINT)),
+        ]));
+    }
     f.render_widget(Paragraph::new(lines).block(panel(&title, focused)), area);
 }
 

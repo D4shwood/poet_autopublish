@@ -33,7 +33,51 @@ pub struct Signature {
     pub publication: Option<String>,
 }
 
+/// Where a poem was published, read from the text after the signature's date:
+/// "Mürekkep #0", "Mürekkep#1", "Örnek Yayın : Almanak", "Örnek Yayın #3 : Almanak".
+#[derive(Debug, Clone, PartialEq)]
+pub struct Publication {
+    /// The journal or book, e.g. "Mürekkep".
+    pub name: String,
+    /// The issue, written after `#`, e.g. "0".
+    pub issue: Option<String>,
+    /// A special edition's own name, written after `:`, e.g. "Almanak".
+    pub edition: Option<String>,
+}
+
+impl Publication {
+    pub fn parse(text: &str) -> Publication {
+        let (left, edition) = match text.split_once(':') {
+            Some((l, e)) => (l, Some(e.trim().to_string()).filter(|e| !e.is_empty())),
+            None => (text, None),
+        };
+        let (name, issue) = match left.split_once('#') {
+            Some((n, i)) => (n, Some(i.trim().to_string()).filter(|i| !i.is_empty())),
+            None => (left, None),
+        };
+        Publication {
+            name: name.trim().to_string(),
+            issue,
+            edition,
+        }
+    }
+
+    /// The issue line under the journal: "#0", "#3 · Almanak", "Almanak".
+    pub fn issue_label(&self) -> Option<String> {
+        match (&self.issue, &self.edition) {
+            (Some(i), Some(e)) => Some(format!("#{i} · {e}")),
+            (Some(i), None) => Some(format!("#{i}")),
+            (None, Some(e)) => Some(e.clone()),
+            (None, None) => None,
+        }
+    }
+}
+
 impl Signature {
+    pub fn publication(&self) -> Option<Publication> {
+        self.publication.as_deref().map(Publication::parse)
+    }
+
     pub fn parse(line: &str) -> Option<Signature> {
         let c = SIGNATURE.captures(line)?;
         let author = c["author"]
@@ -445,6 +489,24 @@ mod tests {
         // a's "xx" line isn't a signature, so it is still part of a's body.
         let c = Poem::parse(Path::new("B10"), "B10\n\nB01\n-Deniz Yalın 09.10.2026\n");
         assert_eq!(b.body_hash(), c.body_hash());
+    }
+
+    #[test]
+    fn publications() {
+        let p = Publication::parse("Mürekkep #0");
+        assert_eq!(
+            (p.name.as_str(), p.issue.as_deref(), p.edition),
+            ("Mürekkep", Some("0"), None)
+        );
+        assert_eq!(Publication::parse("Mürekkep#1").issue.as_deref(), Some("1"));
+        let p = Publication::parse("Örnek Yayın : Almanak");
+        assert_eq!(p.name, "Örnek Yayın");
+        assert_eq!(p.issue, None);
+        assert_eq!(p.edition.as_deref(), Some("Almanak"));
+        assert_eq!(p.issue_label().as_deref(), Some("Almanak"));
+        let p = Publication::parse("Örnek Yayın #3: Almanak");
+        assert_eq!(p.issue_label().as_deref(), Some("#3 · Almanak"));
+        assert_eq!(Publication::parse("Bir Dergi").issue_label(), None);
     }
 
     #[test]

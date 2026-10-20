@@ -68,7 +68,11 @@ boş satır yeni bir kıta başlatır.
   dosyasında tutulur.
 - **Nerede yayımlandığı:** imza satırında tarihten (ve saatten) sonra yazılan
   her şey yayın bilgisidir, örneğin `- K.M Ozan. 31.10.2024 Mürekkep #0`.
-  Tarihin altına *ilk yayın: Mürekkep #0* olarak basılır.
+  Tarihin altına *ilk yayın: Mürekkep #0* olarak basılır. Sayıyı `#`'den
+  sonra, o baskının özel adını `:`'dan sonra yaz: `Mürekkep #0`,
+  `Örnek Yayın #3 : Almanak` ya da `Örnek Yayın : Almanak`. Arayüzde
+  **❖ Yayınlar**, her alanın yayımlanmış şiirlerini yayın → sayı → şiir ağacı
+  olarak gösterir.
 - **Gece yazmak:** 05.00'ten önce imzalanan şiir bir önceki güne sayılır
   (`night_cutoff`), böylece o gecenin haftasında kalır. Sayfada yine gerçek
   saat görünür.

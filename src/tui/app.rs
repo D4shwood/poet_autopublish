@@ -32,6 +32,8 @@ pub enum Item {
     Book,
     /// Inside a collection: back to the weekly series.
     Series,
+    /// The space's poems grouped by where they were published.
+    Publications,
     /// Creates a collection folder from inside the app.
     NewCollection,
     Unsigned,
@@ -204,12 +206,14 @@ impl App {
                     items.push(Item::Week(i));
                 }
                 items.push(Item::All);
+                items.push(Item::Publications);
                 for i in 0..self.lib.collections.len() {
                     items.push(Item::Collection(i));
                 }
             }
             Some(cur) => {
                 items.push(Item::Book);
+                items.push(Item::Publications);
                 items.push(Item::Series);
                 for i in (0..self.lib.collections.len()).filter(|i| *i != cur) {
                     items.push(Item::Collection(i));
@@ -297,7 +301,7 @@ impl App {
             Item::Week(i) => self.lib.weeks[i].poems.len(),
             Item::All => self.lib.weeks.iter().map(|w| w.poems.len()).sum(),
             Item::Collection(i) => self.lib.scan.collections[i].1.len(),
-            Item::Book | Item::Series => self.right_poems_for(item).len(),
+            Item::Book | Item::Series | Item::Publications => self.right_poems_for(item).len(),
             Item::Unsigned => self
                 .with_status(|s| matches!(s, Status::Unsigned | Status::Foreign(_)))
                 .len(),
@@ -322,6 +326,31 @@ impl App {
     fn right_poems_for(&self, item: Item) -> Vec<&Poem> {
         match item {
             Item::Book => self.space_published(),
+            // Sorted journal → issue → title, which is the order the tree is drawn in.
+            Item::Publications => {
+                let mut v: Vec<&Poem> = self
+                    .space_published()
+                    .into_iter()
+                    .filter(|p| {
+                        p.signature
+                            .as_ref()
+                            .is_some_and(|s| s.publication.is_some())
+                    })
+                    .collect();
+                v.sort_by_key(|p| {
+                    let pubn = p.signature.as_ref().unwrap().publication().unwrap();
+                    let issue = pubn.issue.clone().unwrap_or_default();
+                    (
+                        crate::volume::turkish_key(&pubn.name),
+                        // Issue numbers sort as numbers (#2 before #10), others after.
+                        issue.parse::<u64>().unwrap_or(u64::MAX),
+                        issue,
+                        pubn.edition.unwrap_or_default(),
+                        crate::volume::turkish_key(&p.title),
+                    )
+                });
+                v
+            }
             Item::Series => self
                 .lib
                 .weeks

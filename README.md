@@ -65,7 +65,10 @@ a blank line starts a new stanza.
   The table is kept in `~/.config/poetautopublish/authors.toml`.
 - **Where it was published:** anything after the date and time on the signature
   line is the publication, e.g. `- K.M Ozan. 31.10.2024 Mürekkep #0`. It is
-  printed under the date: *first published in Mürekkep #0*.
+  printed under the date: *first published in Mürekkep #0*. Write the issue
+  after `#` and a special edition's own name after `:`, as in `Mürekkep #0`,
+  `Journal #3 : Almanac` or `Journal : Almanac`. In the interface, **❖ Publications**
+  shows each space's published poems as a tree: journal → issue → poem.
 - **Night writing:** a poem signed before 05:00 counts as the previous day
   (`night_cutoff`), so it stays in that night's week. The page still shows the
   real time.
