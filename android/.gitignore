@@ -1,0 +1,8 @@
+.gradle/
+.kotlin/
+build/
+local.properties
+rust/target/
+# Built from rust/ by the buildRust task.
+app/src/main/jniLibs/
+app/src/main/java/uniffi/

@@ -1,0 +1,22 @@
+[package]
+name = "poet_core"
+version = "0.1.0"
+edition = "2024"
+description = "The poet_autopublish core, exposed to the Android app through UniFFI"
+publish = false
+
+[lib]
+crate-type = ["cdylib", "lib"]
+
+[dependencies]
+poetautopublish = { path = "../..", default-features = false }
+chrono = "0.4.45"
+uniffi = "0.32.2"
+
+[workspace]
+members = [".", "uniffi-bindgen"]
+
+[profile.release]
+lto = true
+opt-level = "s"
+strip = true

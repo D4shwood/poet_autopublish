@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="setup_title">Sen kimsin?</string>
+    <string name="setup_name">Şiirlerini imzaladığın ad</string>
+    <string name="setup_pen_names">Rumuzların, virgülle ayır</string>
+    <string name="setup_series">Haftalık serinin adı</string>
+    <string name="setup_pick_folder">Şiir klasörünü seç</string>
+    <string name="setup_folder_chosen">Şiir klasörü: %1$s</string>
+    <string name="setup_save">Kaydet</string>
+
+    <string name="tab_weeks">Haftalar</string>
+    <string name="tab_poems">Şiirler</string>
+    <string name="tab_stats">İstatistik</string>
+    <string name="settings">Ayarlar</string>
+    <string name="refresh">Yenile</string>
+    <string name="new_poem">Yeni şiir</string>
+
+    <string name="loading">Şiirler okunuyor…</string>
+    <string name="load_failed">Şiirler okunamadı: %1$s</string>
+    <string name="no_weeks">Henüz yayımlanmış şiir yok. Bir şiir yaz ve imzala.</string>
+    <string name="volume">Cilt %1$d</string>
+    <string name="poem_count">%1$d şiir</string>
+
+    <string name="status_draft">taslak</string>
+    <string name="status_unsigned">imzasız</string>
+    <string name="first_published">ilk yayın: %1$s</string>
+
+    <string name="stat_poems">Şiir</string>
+    <string name="stat_lines">Mısra</string>
+    <string name="stat_words">Kelime</string>
+    <string name="stat_streak">Günlük seri</string>
+    <string name="stat_longest">En uzun seri</string>
+    <string name="stat_hours">Ne zaman yazıyorsun</string>
+
+    <string name="writer_title">Başlık</string>
+    <string name="writer_body">Şiir</string>
+    <string name="writer_save_draft">Taslak kaydet</string>
+    <string name="writer_sign">İmzala</string>
+    <string name="writer_failed">Kaydedilemedi: %1$s</string>
+    <string name="back">Geri</string>
+</resources>
