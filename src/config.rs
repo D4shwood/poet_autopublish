@@ -1,7 +1,7 @@
+use crate::shared::{self, Profile};
 use anyhow::{Context, Result};
 use chrono::NaiveTime;
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -68,15 +68,45 @@ impl Config {
         }
         let text =
             fs::read_to_string(&path).with_context(|| format!("reading {}", path.display()))?;
-        let cfg: Config =
+        let mut cfg: Config =
             toml::from_str(&text).with_context(|| format!("parsing {}", path.display()))?;
+        let poems = cfg.poems_dir();
+        shared::migrate(&poems, &config_dir())?;
+        // Who the author is travels with the poems; the folder's copy wins.
+        match shared::load_profile(&poems) {
+            Some(p) => cfg.apply_profile(p),
+            None if poems.is_dir() => shared::save_profile(&poems, &cfg.profile())?,
+            None => {}
+        }
         Ok(cfg)
     }
 
     pub fn save(&self) -> Result<()> {
         fs::create_dir_all(config_dir())?;
         fs::write(Self::path(), toml::to_string_pretty(self)?)?;
+        if self.poems_dir().is_dir() {
+            shared::save_profile(&self.poems_dir(), &self.profile())?;
+        }
         Ok(())
+    }
+
+    /// The settings shared with the poems folder.
+    pub fn profile(&self) -> Profile {
+        Profile {
+            author: self.author.clone(),
+            series: self.series.clone(),
+            lang: self.lang.clone(),
+            night_cutoff: self.night_cutoff.clone(),
+        }
+    }
+
+    fn apply_profile(&mut self, p: Profile) {
+        if !p.author.trim().is_empty() {
+            self.author = p.author;
+        }
+        self.series = p.series;
+        self.lang = p.lang;
+        self.night_cutoff = p.night_cutoff;
     }
 
     pub fn poems_dir(&self) -> PathBuf {
@@ -148,29 +178,4 @@ pub fn log_path() -> PathBuf {
 
 pub fn ensure_dir(p: &Path) -> Result<()> {
     fs::create_dir_all(p).with_context(|| format!("creating {}", p.display()))
-}
-
-/// Custom week names, keyed by ISO week ("2026-W41"), in weeks.toml.
-pub fn week_names() -> BTreeMap<String, String> {
-    fs::read_to_string(config_dir().join("weeks.toml"))
-        .ok()
-        .and_then(|t| toml::from_str(&t).ok())
-        .unwrap_or_default()
-}
-
-/// Sets a week's name; an empty name restores the default.
-pub fn set_week_name(key: &str, name: &str) -> Result<()> {
-    let mut names = week_names();
-    let name = name.trim();
-    if name.is_empty() {
-        names.remove(key);
-    } else {
-        names.insert(key.to_string(), name.to_string());
-    }
-    fs::create_dir_all(config_dir())?;
-    fs::write(
-        config_dir().join("weeks.toml"),
-        toml::to_string_pretty(&names)?,
-    )?;
-    Ok(())
 }

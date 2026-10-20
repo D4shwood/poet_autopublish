@@ -1,4 +1,4 @@
-pub use poetautopublish::{authors, config, lang, poem, stats, volume};
+pub use poetautopublish::{authors, config, lang, poem, shared, stats, volume};
 
 mod build;
 mod history;

@@ -186,11 +186,12 @@ impl Setup {
         Outcome::Stay
     }
 
-    /// Writes config.toml and authors.toml, creates the folders and sets up (or
+    /// Writes config.toml and the folder's .poet/ files, creates the folders and sets up (or
     /// stops) the background service. Returns the new config.
     pub fn apply(&self, service_was_on: bool) -> Result<Config> {
         let old = Config::load().ok();
         let old_name = old.as_ref().map(|c| c.author.clone());
+        let old_poems = old.as_ref().map(|c| c.poems_dir());
         let mut cfg = old.unwrap_or_default();
         let name = self.fields[NAME].trim().to_string();
         cfg.author = name.clone();
@@ -199,18 +200,23 @@ impl Setup {
         cfg.series = self.fields[SERIES].trim().to_string();
         fs::create_dir_all(cfg.poems_dir())?;
         fs::create_dir_all(cfg.out_dir())?;
+        crate::shared::migrate(&cfg.poems_dir(), &crate::config::config_dir())?;
         cfg.save()?;
 
         // The main author keeps their entry (and other authors theirs); only the
         // name and pen names change. A pen name another author owns is skipped.
-        let mut authors = Authors::load(old_name.as_deref().unwrap_or(&name));
+        // When the poems folder moved, the authors come along from the old one.
+        let from = old_poems
+            .filter(|p| crate::shared::dir(p).join(crate::shared::AUTHORS).exists())
+            .unwrap_or_else(|| cfg.poems_dir());
+        let mut authors = Authors::load(&from, old_name.as_deref().unwrap_or(&name));
         let main = authors.main;
         authors.list[main].name = name;
         authors.list[main].pen_names.clear();
         for pen in self.pens() {
             authors.add_pen_name(main, &pen);
         }
-        authors.save()?;
+        authors.save(&cfg.poems_dir())?;
 
         if self.service {
             install::install()?;

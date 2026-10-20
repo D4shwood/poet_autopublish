@@ -1,5 +1,5 @@
 use crate::authors::Authors;
-use crate::config::{self, Config, ensure_dir, log_path, state_dir};
+use crate::config::{Config, ensure_dir, log_path, state_dir};
 use crate::history;
 use crate::lang::{self, Lang};
 use crate::latex::{self, Ctx};
@@ -181,7 +181,7 @@ pub struct Library {
 pub fn library(cfg: &Config, poems_dir: &Path) -> Result<Library> {
     let mut scan = poem::scan(poems_dir)?;
     let lang = lang::resolve(&cfg.lang, &scan.poems);
-    let authors = Authors::load(&cfg.author);
+    let authors = Authors::load(poems_dir, &cfg.author);
     scan.sign_undated(&authors);
     let mut weeks = volume::group(
         &scan.poems,
@@ -190,7 +190,7 @@ pub fn library(cfg: &Config, poems_dir: &Path) -> Result<Library> {
         cfg.night_cutoff(),
         &cfg.series,
     );
-    let names = config::week_names();
+    let names = crate::shared::week_names(poems_dir);
     for w in &mut weeks {
         w.name = names.get(&w.key).cloned();
     }

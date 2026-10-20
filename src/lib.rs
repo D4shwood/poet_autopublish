@@ -5,5 +5,6 @@ pub mod authors;
 pub mod config;
 pub mod lang;
 pub mod poem;
+pub mod shared;
 pub mod stats;
 pub mod volume;
