@@ -19,6 +19,25 @@ The program is `poetautopublish` (short: `poet`).
 
 ## Install
 
+### Windows
+
+Download `poetautopublish-…-windows-setup.exe` from
+[Releases](https://github.com/D4shwood/poet_autopublish/releases) and run it.
+No administrator rights are needed. It adds *poetautopublish* and *New poem*
+to the Start menu, a `poet` command for terminals, and an uninstaller.
+Windows may warn that the publisher is unknown, because the installer isn't
+code-signed: choose **More info → Run anyway**.
+
+Or take the `…-windows-portable.zip`, unzip it anywhere and run
+`poetautopublish.exe`.
+
+Writing, signing, collections, publications and stats all work on Windows.
+The PDFs need XeLaTeX for now ([MiKTeX](https://miktex.org) or TeX Live); a
+built-in PDF engine is planned. Windows 11's terminal shows the interface
+best.
+
+### Linux
+
 You need XeLaTeX with a few common packages. On Arch / CachyOS:
 
 ```sh
