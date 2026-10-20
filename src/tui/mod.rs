@@ -14,7 +14,6 @@ use ratatui::crossterm::event::{
 };
 use ratatui::crossterm::execute;
 use std::io::stdout;
-use std::process::Command;
 use std::time::Duration;
 
 /// First run: ask who the user is before anything else. False if they quit.
@@ -67,10 +66,7 @@ pub fn run(start_writing: bool) -> Result<()> {
                         if let Action::ExternalEditor(path) = app.on_key(k) {
                             let _ = execute!(stdout(), DisableBracketedPaste);
                             ratatui::restore();
-                            let editor = std::env::var("VISUAL")
-                                .or_else(|_| std::env::var("EDITOR"))
-                                .unwrap_or_else(|_| "xdg-open".into());
-                            let _ = Command::new(editor).arg(&path).status();
+                            let _ = crate::open::editor(&path).status();
                             terminal = ratatui::init();
                             let _ = execute!(stdout(), EnableBracketedPaste);
                             terminal.clear()?;

@@ -501,19 +501,18 @@ impl App {
     fn open_pdf(&mut self) {
         match self.selected_pdf() {
             Some((p, _)) => {
-                // xdg-open may hand PDFs to a non-PDF app (e.g. a notes app), so
-                // the config can name the viewer.
+                // The desktop default may hand PDFs to a non-PDF app (e.g. a notes
+                // app), so the config can name the viewer.
                 let viewer = self.cfg.pdf_viewer.trim();
-                let viewer = if viewer.is_empty() {
-                    "xdg-open"
+                let mut cmd = if viewer.is_empty() {
+                    crate::open::default_app(&p)
                 } else {
-                    viewer
+                    let mut c = Command::new(viewer);
+                    c.arg(&p);
+                    c
                 };
-                let spawned = Command::new(viewer)
-                    .arg(p)
-                    .stdout(Stdio::null())
-                    .stderr(Stdio::null())
-                    .spawn();
+                let viewer = if viewer.is_empty() { "open" } else { viewer };
+                let spawned = cmd.stdout(Stdio::null()).stderr(Stdio::null()).spawn();
                 if let Err(e) = spawned {
                     self.say(format!("{viewer}: {e}"));
                 }

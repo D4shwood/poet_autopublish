@@ -5,6 +5,7 @@ pub use poetautopublish::{
 mod build;
 mod install;
 mod latex;
+mod open;
 mod sync;
 mod tui;
 mod watch;
