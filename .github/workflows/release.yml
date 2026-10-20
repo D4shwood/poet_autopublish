@@ -1,0 +1,38 @@
+name: Release
+
+# Pushing a tag like v0.1.0 or v0.2.0-beta.1 builds a Linux binary and
+# publishes it as a GitHub release; tags with a "-" become pre-releases.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  linux:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo test
+      - run: cargo build --release --locked
+      - name: Package
+        run: |
+          name=poetautopublish-${GITHUB_REF_NAME}-x86_64-linux
+          mkdir "$name"
+          cp target/release/poetautopublish README.md README.tr.md \
+             config.example.toml "$name"/
+          cp -r templates examples "$name"/
+          tar czf "$name.tar.gz" "$name"
+          sha256sum "$name.tar.gz" > "$name.tar.gz.sha256"
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          pre=""
+          case "$GITHUB_REF_NAME" in *-*) pre="--prerelease" ;; esac
+          gh release create "$GITHUB_REF_NAME" $pre --verify-tag \
+            --title "$GITHUB_REF_NAME" --notes-file RELEASE_NOTES.md \
+            poetautopublish-*.tar.gz poetautopublish-*.tar.gz.sha256
