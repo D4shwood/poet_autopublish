@@ -88,6 +88,12 @@ kendisi açar. Bir koleksiyon seçiliyken `n`'ye basarsan yeni şiir doğrudan o
 koleksiyona yazılır. Koleksiyonun kitabı, içine ilk imzalı şiir girdiğinde
 oluşur.
 
+Bir koleksiyonun üstünde ⏎'ye basınca **o koleksiyona girersin**. Başlıkta
+koleksiyonun adı yazar ve bütün arayüz ona ait olur: yeni şiirler oraya
+kaydedilir; taslaklar, imzasızlar, arama ve istatistikler (haftalar yerine
+yıllara göre) sadece o koleksiyonu kapsar. *Diğer alanlar* altındaki
+**◆ Contra Noir** seni seriye geri götürür.
+
 ## Çıktı
 
 Bir hafta, en erken şiirinin tarihiyle adlandırılır ("5 Ekim Haftası"). Arayüzde

@@ -111,6 +111,13 @@ fn footer(app: &App) -> (String, Style) {
         Mode::Preview => app.t("preview_keys").into(),
         _ => match &app.flash {
             Some((m, _)) => m.clone(),
+            // `r` renames weeks, so it only belongs to the series.
+            None if app.space.is_some() => app
+                .t("keys_main")
+                .split(" · ")
+                .filter(|k| !k.starts_with("r "))
+                .collect::<Vec<_>>()
+                .join(" · "),
             None => app.t("keys_main").into(),
         },
     };
@@ -168,7 +175,7 @@ fn draw_header(f: &mut Frame, area: Rect, app: &App) {
         Span::styled(" poetautopublish", Style::default().fg(MUTED)),
         Span::styled(" — ", Style::default().fg(FAINT)),
         Span::styled(
-            app.cfg.series.clone(),
+            app.space_name(),
             Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
         ),
     ]);
@@ -194,6 +201,8 @@ fn item_label(app: &App, item: Item) -> String {
             format!("  {}  ({})", app.lib.scan.collections[i].0, app.count(item))
         }
         Item::NewCollection => format!("  {}", app.t("new_collection")),
+        Item::Book => format!("  {}  ({})", app.t("all_poems"), app.count(item)),
+        Item::Series => format!("  ◆ {}  ({})", app.cfg.series, app.count(item)),
         Item::Unsigned => format!("{}  ({})", app.t("unsigned"), app.count(item)),
         Item::Drafts => format!("{}  ({})", app.t("drafts"), app.count(item)),
         Item::Stats => app.t("stats").into(),
@@ -223,12 +232,21 @@ fn draw_left(f: &mut Frame, area: Rect, app: &App) {
                 Style::default().fg(FAINT),
             )));
         }
-        if matches!(item, Item::Collection(_) | Item::NewCollection)
-            && i > 0
-            && !matches!(app.items[i - 1], Item::Collection(_))
+        // Inside a collection the same group reads "Other spaces": the series and
+        // the other collections you can switch to.
+        if matches!(
+            item,
+            Item::Collection(_) | Item::NewCollection | Item::Series
+        ) && i > 0
+            && !matches!(app.items[i - 1], Item::Collection(_) | Item::Series)
         {
+            let title = if app.space.is_some() {
+                app.t("other_spaces")
+            } else {
+                app.t("collections")
+            };
             lines.push(Line::from(Span::styled(
-                format!(" {}", app.t("collections")),
+                format!(" {title}"),
                 Style::default().fg(FAINT),
             )));
         }
@@ -441,7 +459,16 @@ fn draw_log(f: &mut Frame, area: Rect, app: &App, scroll: usize, focused: bool) 
 }
 
 fn draw_stats(f: &mut Frame, area: Rect, app: &App) {
-    let s = stats::compute(&app.lib.weeks, app.lang(), Local::now().date_naive());
+    // The current space's numbers: weeks for the series, years for a collection.
+    let published = app.space_published();
+    let (groups, group_title) = match app.space {
+        None => (
+            stats::per_week(&app.lib.weeks, app.lang()),
+            app.t("per_week"),
+        ),
+        Some(_) => (stats::per_year(&published), app.t("per_year")),
+    };
+    let s = stats::compute(&published, groups, Local::now().date_naive());
     let [top, charts] = Layout::vertical([Constraint::Length(5), Constraint::Min(5)]).areas(area);
     let summary = vec![
         Line::from(vec![
@@ -477,11 +504,17 @@ fn draw_stats(f: &mut Frame, area: Rect, app: &App) {
 
     let [weeks, hours] =
         Layout::horizontal([Constraint::Percentage(45), Constraint::Percentage(55)]).areas(charts);
-    let max = s.per_week.iter().map(|(_, n)| *n).max().unwrap_or(1).max(1);
+    let max = s
+        .per_group
+        .iter()
+        .map(|(_, n)| *n)
+        .max()
+        .unwrap_or(1)
+        .max(1);
     let bar_w = weeks.width.saturating_sub(18) as u64;
     let rows = weeks.height.saturating_sub(2) as usize;
     let lines: Vec<Line> = s
-        .per_week
+        .per_group
         .iter()
         .rev()
         .take(rows)
@@ -495,7 +528,7 @@ fn draw_stats(f: &mut Frame, area: Rect, app: &App) {
         })
         .collect();
     f.render_widget(
-        Paragraph::new(lines).block(panel(app.t("per_week"), false)),
+        Paragraph::new(lines).block(panel(group_title, false)),
         weeks,
     );
 

@@ -144,6 +144,8 @@ impl Lang {
             ),
             "weeks" => ("Haftalar", "Weeks"),
             "collections" => ("Koleksiyonlar", "Collections"),
+            "other_spaces" => ("Diğer alanlar", "Other spaces"),
+            "per_year" => ("Yıllara göre şiir", "Poems per year"),
             "new_collection" => ("+ Yeni koleksiyon", "+ New collection"),
             "new_in_collection" => (
                 "Henüz şiir yok · n: bu koleksiyona yeni şiir",
