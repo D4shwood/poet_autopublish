@@ -5,6 +5,7 @@ pub use poetautopublish::{
 mod build;
 mod install;
 mod latex;
+mod sync;
 mod tui;
 mod watch;
 
@@ -39,6 +40,8 @@ enum Cmd {
     Install,
     /// Remove what `install` added.
     Uninstall,
+    /// Sync the poems folder with its git remote now, and push the PDFs.
+    Sync,
 }
 
 fn main() -> Result<()> {
@@ -58,6 +61,28 @@ fn main() -> Result<()> {
             Ok(())
         }
         Some(Cmd::Watch) => watch::run(),
+        Some(Cmd::Sync) => {
+            let cfg = config::Config::load()?;
+            if !cfg.poems_dir().join(".git").exists() {
+                anyhow::bail!("{} is not a git repo", cfg.poems_dir().display());
+            }
+            let out = sync::sync(&cfg.poems_dir())?;
+            for c in &out.conflicts {
+                println!("both changed: {c} (yours kept as \"{c} ({})\")", sync::SIDE);
+            }
+            println!(
+                "{}{}",
+                if out.pulled { "pulled · " } else { "" },
+                if out.pushed { "pushed" } else { "up to date" }
+            );
+            if out.pulled {
+                build::build(&cfg, None, false)?;
+            }
+            if sync::push_pdfs(&cfg)? {
+                println!("PDFs pushed to the pdf branch");
+            }
+            Ok(())
+        }
         Some(Cmd::Install) => {
             config::Config::load()?;
             for l in install::install()? {
