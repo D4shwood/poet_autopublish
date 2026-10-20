@@ -147,6 +147,11 @@ impl Lang {
             "collections" => ("Koleksiyonlar", "Collections"),
             "other_spaces" => ("Diğer alanlar", "Other spaces"),
             "signatures" => ("◇ İmzalar", "◇ Signatures"),
+            "publications" => ("❖ Yayınlar", "❖ Publications"),
+            "no_publications" => (
+                "Henüz yayın yok. İmzanın sonuna yayını yaz: - Ad. 31.10.2024 Mürekkep #0",
+                "No publications yet. Write it after the signature: - Name. 31.10.2024 Journal #0",
+            ),
             "main_author" => ("ana yazar · yayımlanır", "main author · published"),
             "tracked" => ("takip edilir · yayımlanmaz", "tracked · not published"),
             "no_real_name" => ("(adı yok)", "(no real name)"),
