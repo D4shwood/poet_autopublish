@@ -1,6 +1,7 @@
 mod app;
 #[cfg(feature = "preview")]
 mod preview;
+mod signatures;
 mod ui;
 pub mod writer;
 

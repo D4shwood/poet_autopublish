@@ -6,9 +6,11 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::LazyLock;
 
+use crate::authors::Authors;
+
 static SIGNATURE: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(
-        r"^\s*[-–—]?\s*(?P<author>[^\d~]+?)[.,]?\s*(?P<approx>~)?\s*(?P<d>\d{1,2})[./](?P<m>\d{1,2})[./](?P<y>\d{4})(?:\s*[-–—]?\s*(?P<H>\d{1,2})[.:](?P<M>\d{2}))?\s*$",
+        r"^\s*[-–—]?\s*(?P<author>[^\d~]+?)[.,]?\s*(?P<approx>~)?\s*(?P<d>\d{1,2})[./](?P<m>\d{1,2})[./](?P<y>\d{4})(?:\s*[-–—]?\s*(?P<H>\d{1,2})[.:](?P<M>\d{2}))?(?:\s*[-–—·,]?\s*(?P<publication>[^\s\-–—·,].*?))?\s*$",
     )
     .unwrap()
 });
@@ -26,6 +28,9 @@ pub struct Signature {
     pub time: Option<NaiveTime>,
     /// `~08.10.2026`: the exact day is unknown; only its week is.
     pub approx: bool,
+    /// Whatever follows the date and time: where the poem was published,
+    /// e.g. "Mürekkep #0".
+    pub publication: Option<String>,
 }
 
 impl Signature {
@@ -53,11 +58,16 @@ impl Signature {
             _ => None,
         };
         let approx = c.name("approx").is_some();
+        let publication = c
+            .name("publication")
+            .map(|m| m.as_str().trim().to_string())
+            .filter(|s| !s.is_empty());
         Some(Signature {
             author,
             date,
             time: if approx { None } else { time },
             approx,
+            publication,
         })
     }
 
@@ -163,14 +173,19 @@ impl Poem {
         }
     }
 
-    pub fn status(&self, author: &str) -> Status {
+    /// Only the main author's poems (under any of their names) are published;
+    /// other signatures are tracked as Foreign, labelled with their author.
+    pub fn status(&self, authors: &Authors) -> Status {
         if self.draft {
             return Status::Draft;
         }
         match &self.signature {
             None => Status::Unsigned,
-            Some(sig) if !same_author(&sig.author, author) => Status::Foreign(sig.author.clone()),
-            Some(_) => Status::Published,
+            Some(sig) if authors.is_main(&sig.author) => Status::Published,
+            Some(sig) => Status::Foreign(match authors.find(&sig.author) {
+                Some(i) => authors.list[i].label(),
+                None => sig.author.clone(),
+            }),
         }
     }
 
@@ -186,10 +201,6 @@ impl Poem {
     pub fn line_count(&self) -> usize {
         self.body.iter().filter(|l| !l.trim().is_empty()).count()
     }
-}
-
-fn same_author(a: &str, b: &str) -> bool {
-    a.trim().to_lowercase() == b.trim().to_lowercase()
 }
 
 pub fn hash_str(s: &str) -> String {
@@ -341,6 +352,10 @@ pub fn scan(dir: &Path) -> Result<Scan> {
 mod tests {
     use super::*;
 
+    fn me() -> Authors {
+        Authors::new(vec![], "Deniz Yalın")
+    }
+
     fn t(h: u32, m: u32) -> NaiveTime {
         NaiveTime::from_hms_opt(h, m, 0).unwrap()
     }
@@ -369,6 +384,21 @@ mod tests {
                 .approx
         );
         assert!(Signature::parse("-Deniz Yalın xx.10.2026").is_none());
+
+        // Anything after the date and time is where the poem was published.
+        let s = Signature::parse("- K.M Ozan. 31.10.2024 Mürekkep #0").unwrap();
+        assert_eq!(s.author, "K.M Ozan");
+        assert_eq!(s.date, NaiveDate::from_ymd_opt(2024, 10, 31).unwrap());
+        assert_eq!(s.publication.as_deref(), Some("Mürekkep #0"));
+        let s = Signature::parse("- Deniz Yalın. 13.10.2026 - 22.58 · Kitap, 2. baskı").unwrap();
+        assert_eq!(s.time, Some(t(22, 58)));
+        assert_eq!(s.publication.as_deref(), Some("Kitap, 2. baskı"));
+        assert_eq!(
+            Signature::parse("- Deniz Yalın. 13.10.2026 - 22.58")
+                .unwrap()
+                .publication,
+            None
+        );
 
         assert!(Signature::parse("B00").is_none());
         assert!(Signature::parse("Hamd olsun. Hamd ettirene.").is_none());
@@ -400,8 +430,11 @@ mod tests {
             vec!["Kıyıda beklerken,", "    Martılar", "", "Son."]
         );
         assert!(p.signature.is_some());
-        assert_eq!(p.status("deniz yalın"), Status::Published);
-        assert!(matches!(p.status("Someone"), Status::Foreign(_)));
+        assert_eq!(p.status(&me()), Status::Published);
+        assert!(matches!(
+            p.status(&Authors::new(vec![], "Someone")),
+            Status::Foreign(_)
+        ));
     }
 
     #[test]
@@ -420,13 +453,13 @@ mod tests {
         let p = Poem::parse(Path::new("Başlık"), raw);
         assert!(p.draft);
         assert_eq!(p.body, vec!["bir mısra"]);
-        assert_eq!(p.status("Deniz Yalın"), Status::Draft);
+        assert_eq!(p.status(&me()), Status::Draft);
     }
 
     #[test]
     fn unsigned() {
         let p = Poem::parse(Path::new("B10"), "B10\n\nB01 satır\nB00\n");
-        assert_eq!(p.status("Deniz Yalın"), Status::Unsigned);
+        assert_eq!(p.status(&me()), Status::Unsigned);
         assert_eq!(p.body, vec!["B01 satır", "B00"]);
     }
 

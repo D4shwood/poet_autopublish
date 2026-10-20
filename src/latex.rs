@@ -8,7 +8,10 @@ use std::collections::{BTreeSet, HashMap};
 pub struct Ctx<'a> {
     pub template: &'a str,
     pub series: &'a str,
+    /// The name on covers: the main author's real name, or their pen names.
     pub author: &'a str,
+    /// The main author's real name; a footer signed otherwise shows its name.
+    pub real_name: &'a str,
     pub lang: Lang,
     /// file name -> latest revision date
     pub revisions: &'a HashMap<String, NaiveDate>,
@@ -103,6 +106,10 @@ pub fn footer_text(p: &Poem, ctx: &Ctx) -> String {
     } else {
         ctx.lang.date_long(sig.date)
     };
+    // A pen name is shown; the real name isn't, as it is on the cover.
+    if crate::authors::norm(&sig.author) != crate::authors::norm(ctx.real_name) {
+        s = format!("{} · {s}", sig.author);
+    }
     if let Some(t) = sig.time {
         s.push_str(&format!(" · {}", t.format("%H.%M")));
     }
@@ -116,6 +123,12 @@ pub fn footer_text(p: &Poem, ctx: &Ctx) -> String {
     s
 }
 
+/// "ilk yayın: Mürekkep #0", from the text after the signature's date.
+pub fn publication_text(p: &Poem, ctx: &Ctx) -> Option<String> {
+    let publication = p.signature.as_ref()?.publication.as_ref()?;
+    Some(format!("{} {publication}", ctx.lang.t("first_published")))
+}
+
 fn poem_page(p: &Poem, ctx: &Ctx, toc: bool) -> String {
     let mut out = String::from("\\newpage\n");
     if toc {
@@ -126,10 +139,15 @@ fn poem_page(p: &Poem, ctx: &Ctx, toc: bool) -> String {
     }
     out.push_str(&format!("\\poemtitle{{{}}}\n", escape(&p.title)));
     out.push_str(&body_tex(&p.body));
-    out.push_str(&format!(
-        "\\poemfooter{{{}}}\n",
-        escape(&footer_text(p, ctx))
-    ));
+    // The publication goes on a smaller line under the date.
+    let mut footer = escape(&footer_text(p, ctx));
+    if let Some(publication) = publication_text(p, ctx) {
+        footer.push_str(&format!(
+            "\\\\[2pt]{{\\footnotesize\\itshape {}}}",
+            escape(&publication)
+        ));
+    }
+    out.push_str(&format!("\\poemfooter{{{footer}}}\n"));
     out
 }
 

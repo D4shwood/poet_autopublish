@@ -57,6 +57,15 @@ a blank line starts a new stanza.
   means "around 8 October". The poem goes into that week, after the poems
   with exact dates, and its footer shows only the week of the month
   (`October 2026 · week 2`).
+- **Pen names and other authors.** The *Signatures* screen in the interface
+  lists authors and their pen names. Poems signed with your name or any of
+  your pen names are published, and the page then shows the pen name. Poems
+  signed by other authors are tracked there but never published. Signatures
+  that belong to no one yet show up there too, and ⏎ assigns them to an author.
+  The table is kept in `~/.config/poetautopublish/authors.toml`.
+- **Where it was published:** anything after the date and time on the signature
+  line is the publication, e.g. `- K.M Ozan. 31.10.2024 Mürekkep #0`. It is
+  printed under the date: *first published in Mürekkep #0*.
 - **Night writing:** a poem signed before 05:00 counts as the previous day
   (`night_cutoff`), so it stays in that night's week. The page still shows the
   real time.

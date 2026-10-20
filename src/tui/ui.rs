@@ -27,7 +27,7 @@ fn base() -> Style {
     Style::default().fg(FG).bg(BG)
 }
 
-fn panel(title: &str, focused: bool) -> Block<'_> {
+pub(super) fn panel(title: &str, focused: bool) -> Block<'_> {
     Block::default()
         .borders(Borders::ALL)
         .border_style(Style::default().fg(if focused { ACCENT } else { FAINT }))
@@ -60,6 +60,10 @@ pub fn draw(f: &mut Frame, app: &mut App) {
 
     match &app.mode {
         Mode::Stats => draw_stats(f, body, app),
+        Mode::Signatures { sel } => super::signatures::draw(f, body, app, *sel),
+        Mode::AuthorPrompt { back, .. } | Mode::AssignPen { back, .. } => {
+            super::signatures::draw(f, body, app, *back)
+        }
         #[cfg(feature = "preview")]
         Mode::Preview => draw_preview(f, body.union(log), app),
         Mode::Log { scroll } => {
@@ -89,6 +93,17 @@ pub fn draw(f: &mut Frame, app: &mut App) {
 fn footer(app: &App) -> (String, Style) {
     let hint = match &app.mode {
         Mode::Confirm(Confirm::Force) => app.t("confirm_force").to_string(),
+        Mode::Confirm(Confirm::RemoveAuthor(_)) => app.t("confirm_remove_author").to_string(),
+        Mode::Signatures { .. } => app.t("sig_keys").to_string(),
+        Mode::AssignPen { .. } => "⏎ · ↑↓ · Esc".into(),
+        Mode::AuthorPrompt { step, input, .. } => {
+            let label = match step {
+                super::app::AuthorStep::Name => app.t("author_name"),
+                super::app::AuthorStep::FirstPen { .. } => app.t("first_pen"),
+                super::app::AuthorStep::AddPen { .. } => app.t("add_pen"),
+            };
+            format!("{label}: {input}▏   {}", app.t("prompt_keys"))
+        }
         Mode::Confirm(Confirm::Trash(p)) => {
             format!(
                 "{} — {}",
@@ -129,7 +144,11 @@ fn footer(app: &App) -> (String, Style) {
     let style = if app.quitting
         || matches!(
             app.mode,
-            Mode::Confirm(_) | Mode::WatcherMenu | Mode::Rename { .. } | Mode::NewCollection { .. }
+            Mode::Confirm(_)
+                | Mode::WatcherMenu
+                | Mode::Rename { .. }
+                | Mode::NewCollection { .. }
+                | Mode::AuthorPrompt { .. }
         ) {
         Style::default().fg(ACCENT).add_modifier(Modifier::BOLD)
     } else {
@@ -206,6 +225,7 @@ fn item_label(app: &App, item: Item) -> String {
         Item::Unsigned => format!("{}  ({})", app.t("unsigned"), app.count(item)),
         Item::Drafts => format!("{}  ({})", app.t("drafts"), app.count(item)),
         Item::Stats => app.t("stats").into(),
+        Item::Signatures => app.t("signatures").into(),
         Item::Quit => app.t("quit_item").into(),
     }
 }
@@ -401,7 +421,7 @@ fn draw_poem_list(f: &mut Frame, area: Rect, app: &App) {
                 }
                 None => String::new(),
             };
-            let tag = match p.status(&app.cfg.author) {
+            let tag = match p.status(&app.lib.authors) {
                 Status::Draft => {
                     format!("{} · {} {}", app.t("draft"), p.line_count(), app.t("lines"))
                 }

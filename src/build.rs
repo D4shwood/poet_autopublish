@@ -1,3 +1,4 @@
+use crate::authors::Authors;
 use crate::config::{self, Config, ensure_dir, log_path, state_dir};
 use crate::history;
 use crate::lang::{self, Lang};
@@ -165,15 +166,18 @@ pub struct Library {
     pub collections: Vec<volume::Collection>,
     pub lang: Lang,
     pub book: String,
+    /// Authors and pen names: only the main author's poems are published.
+    pub authors: Authors,
 }
 
 pub fn library(cfg: &Config, poems_dir: &Path) -> Result<Library> {
     let scan = poem::scan(poems_dir)?;
     let lang = lang::resolve(&cfg.lang, &scan.poems);
+    let authors = Authors::load(&cfg.author);
     let mut weeks = volume::group(
         &scan.poems,
         &scan.epigraphs,
-        &cfg.author,
+        &authors,
         cfg.night_cutoff(),
         &cfg.series,
     );
@@ -181,13 +185,14 @@ pub fn library(cfg: &Config, poems_dir: &Path) -> Result<Library> {
     for w in &mut weeks {
         w.name = names.get(&w.key).cloned();
     }
-    let collections = volume::collections(&scan.collections, &cfg.author);
+    let collections = volume::collections(&scan.collections, &authors);
     Ok(Library {
         scan,
         weeks,
         collections,
         lang,
         book: volume::book_file_name(&cfg.series),
+        authors,
     })
 }
 
@@ -205,7 +210,7 @@ pub fn build(cfg: &Config, poems_dir: Option<&Path>, force: bool) -> Result<Repo
 
     for p in lib.scan.all_poems() {
         let _ = history::snapshot(&p.file_name, &p.raw, cfg.history_keep);
-        match p.status(&cfg.author) {
+        match p.status(&lib.authors) {
             Status::Unsigned => report.unsigned.push(p.file_name.clone()),
             Status::Draft => report.drafts.push(p.file_name.clone()),
             Status::Foreign(a) => report.foreign.push((p.file_name.clone(), a)),
@@ -247,10 +252,12 @@ pub fn build(cfg: &Config, poems_dir: Option<&Path>, force: bool) -> Result<Repo
     let revisions = state.revisions();
 
     let template = cfg.template();
+    let cover_name = lib.authors.main_author().label();
     let ctx = Ctx {
         template: &template,
         series: &cfg.series,
-        author: &cfg.author,
+        author: &cover_name,
+        real_name: &lib.authors.main_author().name,
         lang: lib.lang,
         revisions: &revisions,
     };
