@@ -19,10 +19,24 @@ Programın adı `poetautopublish`, kısa komutu `poet`.
 
 ## Kurulum
 
-Rust ve birkaç yaygın paketle birlikte XeLaTeX gerekir. Arch / CachyOS'ta:
+Birkaç yaygın paketle birlikte XeLaTeX gerekir. Arch / CachyOS'ta:
 
 ```sh
-sudo pacman -S rust texlive-xetex texlive-latexrecommended texlive-latexextra ttf-liberation
+sudo pacman -S texlive-xetex texlive-latexrecommended texlive-latexextra ttf-liberation
+```
+
+**Hazır dosya (Linux x86_64).** [Releases](https://github.com/D4shwood/poet_autopublish/releases)
+sayfasından son `.tar.gz` dosyasını indir, sonra:
+
+```sh
+tar xzf poetautopublish-*-x86_64-linux.tar.gz
+install -Dm755 poetautopublish-*-x86_64-linux/poetautopublish ~/.local/bin/poetautopublish
+poetautopublish
+```
+
+**Kaynaktan** (Rust gerekir):
+
+```sh
 cargo install --git https://github.com/D4shwood/poet_autopublish --root ~/.local
 poetautopublish
 ```
@@ -193,7 +207,6 @@ Planlanan, henüz yapılmamış özellikler; ayrıntılar [TODO.md](TODO.md) dos
 - **Denemeler**: şiirlerin yanında düzyazı koleksiyonu.
 - **Şiiri görsel olarak dışa aktarma**: paylaşmak için tek şiirin PNG sayfası (kare ya da hikâye).
 - **Yazma hatırlatıcısı**: birkaç gün şiir yazılmazsa isteğe bağlı bir dürtme.
-- **Hazır sürümler**: her etiketli sürüme derlenmiş bir Linux dosyası.
 - **Sayfa önizlemesi**: terminal içinde metin provası (şimdilik askıda).
 - **Windows sürümü** ve telefonda yazıp okumak için bir **Android uygulaması**.
 - **Telefon–bilgisayar eşitlemesi**: iki taraftan yazılan şiirler aynı klasörde, PDF'ler telefonda.

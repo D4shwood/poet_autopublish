@@ -19,10 +19,24 @@ The program is `poetautopublish` (short: `poet`).
 
 ## Install
 
-You need Rust and XeLaTeX with a few common packages. On Arch / CachyOS:
+You need XeLaTeX with a few common packages. On Arch / CachyOS:
 
 ```sh
-sudo pacman -S rust texlive-xetex texlive-latexrecommended texlive-latexextra ttf-liberation
+sudo pacman -S texlive-xetex texlive-latexrecommended texlive-latexextra ttf-liberation
+```
+
+**Prebuilt binary (Linux x86_64).** Download the latest `.tar.gz` from
+[Releases](https://github.com/D4shwood/poet_autopublish/releases), then:
+
+```sh
+tar xzf poetautopublish-*-x86_64-linux.tar.gz
+install -Dm755 poetautopublish-*-x86_64-linux/poetautopublish ~/.local/bin/poetautopublish
+poetautopublish
+```
+
+**From source** (needs Rust):
+
+```sh
 cargo install --git https://github.com/D4shwood/poet_autopublish --root ~/.local
 poetautopublish
 ```
@@ -181,7 +195,6 @@ Planned, not built yet; details in [TODO.md](TODO.md).
 - **Essays** — a prose collection next to the poems.
 - **Poem as an image** — a PNG of one poem page for sharing (square or story).
 - **Writing reminder** — an optional nudge after a few days without a poem.
-- **Release binaries** — a prebuilt Linux binary on each tagged release.
 - **Page preview** — a text proof inside the terminal (suspended for now).
 - **Windows port** and an **Android app** for writing and reading on the phone.
 - **Phone–computer sync** — poems from either side in one folder, PDFs back on the phone.

@@ -230,11 +230,7 @@ mod tests {
         assert_eq!(weeks[1].label(Lang::Tr), "13 Ekim Haftası");
 
         // An approximate date goes to its week, after the exactly dated poems.
-        let mut more: Vec<Poem> = poems
-            .iter()
-            .filter(|p| p.title != "Kum")
-            .cloned()
-            .collect();
+        let mut more: Vec<Poem> = poems.iter().filter(|p| p.title != "Kum").cloned().collect();
         more.push(poem("Yaklaşık", "-Deniz Yalın ~08.10.2026"));
         let weeks = group(
             &more,
