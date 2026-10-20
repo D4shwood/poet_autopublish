@@ -186,6 +186,18 @@ Paketteki örnekle denemek için `author = "Örnek Şair"` ayarlayıp şunu çal
 poet build --poems-dir examples/poems
 ```
 
+## Yol haritası
+
+Planlanan, henüz yapılmamış özellikler; ayrıntılar [TODO.md](TODO.md) dosyasında.
+
+- **Denemeler**: şiirlerin yanında düzyazı koleksiyonu.
+- **Şiiri görsel olarak dışa aktarma**: paylaşmak için tek şiirin PNG sayfası (kare ya da hikâye).
+- **Yazma hatırlatıcısı**: birkaç gün şiir yazılmazsa isteğe bağlı bir dürtme.
+- **Hazır sürümler**: her etiketli sürüme derlenmiş bir Linux dosyası.
+- **Sayfa önizlemesi**: terminal içinde metin provası (şimdilik askıda).
+- **Windows sürümü** ve telefonda yazıp okumak için bir **Android uygulaması**.
+- **Telefon–bilgisayar eşitlemesi**: iki taraftan yazılan şiirler aynı klasörde, PDF'ler telefonda.
+
 ## Lisans
 
 Tüm hakları saklıdır.

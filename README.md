@@ -174,6 +174,18 @@ Try it with the bundled example by setting `author = "Örnek Şair"` and running
 poet build --poems-dir examples/poems
 ```
 
+## Roadmap
+
+Planned, not built yet; details in [TODO.md](TODO.md).
+
+- **Essays** — a prose collection next to the poems.
+- **Poem as an image** — a PNG of one poem page for sharing (square or story).
+- **Writing reminder** — an optional nudge after a few days without a poem.
+- **Release binaries** — a prebuilt Linux binary on each tagged release.
+- **Page preview** — a text proof inside the terminal (suspended for now).
+- **Windows port** and an **Android app** for writing and reading on the phone.
+- **Phone–computer sync** — poems from either side in one folder, PDFs back on the phone.
+
 ## License
 
 All rights reserved.
