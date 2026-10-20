@@ -49,13 +49,30 @@ pub fn is_turkish(text: &str) -> bool {
 }
 
 /// `setting` is the config value: "tr", "en" or "auto".
+/// The system's language (LC_ALL, LC_MESSAGES, LANG): Turkish or English.
+pub fn system_lang() -> Lang {
+    for var in ["LC_ALL", "LC_MESSAGES", "LANG"] {
+        if let Ok(v) = std::env::var(var)
+            && !v.is_empty()
+        {
+            return if v.to_lowercase().starts_with("tr") {
+                Lang::Tr
+            } else {
+                Lang::En
+            };
+        }
+    }
+    Lang::En
+}
+
 pub fn resolve(setting: &str, poems: &[Poem]) -> Lang {
     match setting.trim().to_lowercase().as_str() {
         "tr" => Lang::Tr,
         "en" => Lang::En,
         _ => {
+            // No poems to judge by yet: speak the system's language.
             if poems.is_empty() {
-                return Lang::En;
+                return system_lang();
             }
             let tr = poems.iter().filter(|p| is_turkish(&p.raw)).count();
             if tr * 2 > poems.len() {
@@ -147,6 +164,7 @@ impl Lang {
             "collections" => ("Koleksiyonlar", "Collections"),
             "other_spaces" => ("Diğer alanlar", "Other spaces"),
             "signatures" => ("◇ İmzalar", "◇ Signatures"),
+            "settings" => ("⚙ Ayarlar", "⚙ Settings"),
             "publications" => ("❖ Yayınlar", "❖ Publications"),
             "no_publications" => (
                 "Henüz yayın yok. İmzanın sonuna yayını yaz: - Ad. 31.10.2024 Mürekkep #0",

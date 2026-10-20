@@ -24,16 +24,23 @@ You need Rust and XeLaTeX with a few common packages. On Arch / CachyOS:
 ```sh
 sudo pacman -S rust texlive-xetex texlive-latexrecommended texlive-latexextra ttf-liberation
 cargo install --git https://github.com/D4shwood/poet_autopublish --root ~/.local
-poetautopublish install
+poetautopublish
 ```
 
-`install` sets up a systemd user service that rebuilds the PDFs whenever your
-poems folder changes, adds the `poet` command to `~/.local/bin`, and adds a menu
+The first run asks who you are, step by step:
+1. your name, as you sign your poems
+2. your pen names
+3. the poems folder and the PDF folder (both created if missing)
+4. the name of your weekly series
+5. whether to rebuild in the background
+
+That last step sets up a systemd user service that rebuilds the PDFs whenever
+your poems change, adds the `poet` command to `~/.local/bin`, and adds a menu
 entry (with a *New poem* action). `poetautopublish uninstall` removes all of it.
 
-On first run a config is created at `~/.config/poetautopublish/config.toml`. Set
-at least `author` (your name, exactly as you sign) and `poems_dir`. See
-[config.example.toml](config.example.toml) for every option.
+**⚙ Settings** in the menu reopens the same screens with your answers filled in.
+The answers are saved in `~/.config/poetautopublish/config.toml` and
+`authors.toml`. See [config.example.toml](config.example.toml) for every option.
 
 ## Poem files
 
