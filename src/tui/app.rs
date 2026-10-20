@@ -28,6 +28,8 @@ pub enum Item {
     All,
     /// A subfolder's book, outside the weekly series.
     Collection(usize),
+    /// Creates a collection folder from inside the app.
+    NewCollection,
     Unsigned,
     Drafts,
     Stats,
@@ -61,6 +63,10 @@ pub enum Mode {
     Confirm(Confirm),
     WatcherMenu,
     /// Typing a new name for the week at `idx`.
+    /// Typing the name of a new collection.
+    NewCollection {
+        input: String,
+    },
     Rename {
         idx: usize,
         input: String,
@@ -158,6 +164,7 @@ impl App {
         for i in 0..self.lib.collections.len() {
             items.push(Item::Collection(i));
         }
+        items.push(Item::NewCollection);
         items.push(Item::Unsigned);
         items.push(Item::Drafts);
         items.push(Item::Stats);
@@ -195,7 +202,7 @@ impl App {
         match item {
             Item::Week(i) => self.lib.weeks[i].poems.len(),
             Item::All => self.lib.weeks.iter().map(|w| w.poems.len()).sum(),
-            Item::Collection(i) => self.lib.collections[i].poems.len(),
+            Item::Collection(i) => self.lib.scan.collections[i].1.len(),
             Item::Unsigned => self
                 .with_status(|s| matches!(s, Status::Unsigned | Status::Foreign(_)))
                 .len(),
@@ -223,7 +230,12 @@ impl App {
                 .rev()
                 .flat_map(|w| w.poems.iter())
                 .collect(),
-            Item::Collection(i) => self.lib.collections[i].poems.iter().collect(),
+            // Everything in the folder, drafts and unsigned poems included.
+            Item::Collection(i) => {
+                let mut v: Vec<&Poem> = self.lib.scan.collections[i].1.iter().collect();
+                v.sort_by_key(|p| crate::volume::turkish_key(&p.title));
+                v
+            }
             Item::Unsigned => {
                 self.with_status(|s| matches!(s, Status::Unsigned | Status::Foreign(_)))
             }
@@ -232,7 +244,7 @@ impl App {
                 v.sort_by_key(|p| std::cmp::Reverse(mtime(&p.path)));
                 v
             }
-            Item::Stats | Item::Quit => vec![],
+            Item::Stats | Item::Quit | Item::NewCollection => vec![],
         }
     }
 
@@ -325,10 +337,43 @@ impl App {
 
     // ---------------------------------------------------------------- actions
 
+    /// A blank page. With a collection selected, the poem is saved into it.
     pub fn new_poem(&mut self) {
         let all: Vec<Poem> = self.lib.scan.all_poems().cloned().collect();
-        let insp = writer::inspiration(&all);
-        self.mode = Mode::Writer(Box::new(Editor::new(insp)));
+        let mut ed = Editor::new(writer::inspiration(&all));
+        if let Item::Collection(i) = self.current_item() {
+            ed.dir = Some(self.cfg.poems_dir().join(&self.lib.scan.collections[i].0));
+        }
+        self.mode = Mode::Writer(Box::new(ed));
+    }
+
+    fn create_collection(&mut self, input: &str) {
+        if input.trim().is_empty() {
+            return;
+        }
+        let name = writer::sanitize(input);
+        let dir = self.cfg.poems_dir().join(&name);
+        match fs::create_dir_all(&dir) {
+            Ok(()) => {
+                build::log(&format!("new collection: {name}"));
+                self.refresh();
+                let i = self
+                    .lib
+                    .scan
+                    .collections
+                    .iter()
+                    .position(|(n, _)| *n == name);
+                if let Some(pos) = self
+                    .items
+                    .iter()
+                    .position(|it| matches!(it, Item::Collection(j) if Some(*j) == i))
+                {
+                    self.left = pos;
+                    self.focus_right = false;
+                }
+            }
+            Err(e) => self.say(format!("{e}")),
+        }
     }
 
     fn open_poem(&mut self, path: PathBuf) {
@@ -408,7 +453,9 @@ impl App {
             Mode::Writer(ed) => {
                 ed.insert_str(s);
             }
-            Mode::Rename { input, .. } => input.push_str(s.lines().next().unwrap_or("")),
+            Mode::Rename { input, .. } | Mode::NewCollection { input } => {
+                input.push_str(s.lines().next().unwrap_or(""))
+            }
             Mode::Search { query, hits, sel } => {
                 query.push_str(s.lines().next().unwrap_or(""));
                 *hits = search::search(
@@ -528,6 +575,25 @@ impl App {
                 }
                 (Mode::Main, Action::None)
             }
+            Mode::NewCollection { mut input } => match k.code {
+                KeyCode::Esc => (Mode::Main, Action::None),
+                KeyCode::Enter => {
+                    self.create_collection(&input);
+                    (Mode::Main, Action::None)
+                }
+                KeyCode::Backspace => {
+                    input.pop();
+                    (Mode::NewCollection { input }, Action::None)
+                }
+                KeyCode::Char(c)
+                    if !k.modifiers.contains(KeyModifiers::CONTROL)
+                        || k.modifiers.contains(KeyModifiers::ALT) =>
+                {
+                    input.push(c);
+                    (Mode::NewCollection { input }, Action::None)
+                }
+                _ => (Mode::NewCollection { input }, Action::None),
+            },
             Mode::Rename { idx, mut input } => match k.code {
                 KeyCode::Esc => (Mode::Main, Action::None),
                 KeyCode::Enter => {
@@ -626,6 +692,11 @@ impl App {
                         }
                         Item::Stats => self.mode = Mode::Stats,
                         Item::Quit => self.quitting = true,
+                        Item::NewCollection => {
+                            self.mode = Mode::NewCollection {
+                                input: String::new(),
+                            }
+                        }
                         _ if n_right > 0 => self.focus_right = true,
                         _ => {}
                     }

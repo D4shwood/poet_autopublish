@@ -263,7 +263,8 @@ pub fn build(cfg: &Config, poems_dir: Option<&Path>, force: bool) -> Result<Repo
     if !lib.weeks.is_empty() {
         wanted.push((lib.book.clone(), latex::book_doc(&lib.weeks, &ctx), 2));
     }
-    for c in &lib.collections {
+    // A collection gets its book once it has a signed poem.
+    for c in lib.collections.iter().filter(|c| !c.poems.is_empty()) {
         wanted.push((c.file_name.clone(), latex::collection_doc(c, &ctx), 2));
     }
 

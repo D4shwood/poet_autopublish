@@ -131,7 +131,6 @@ pub fn collections(folders: &[(String, Vec<Poem>)], author: &str) -> Vec<Collect
                 file_name: format!("{}.pdf", slug(name)),
             }
         })
-        .filter(|c| !c.poems.is_empty())
         .collect()
 }
 
@@ -262,7 +261,10 @@ mod tests {
         assert_eq!(cs[0].file_name, "eski_siirler.pdf");
         let titles: Vec<_> = cs[0].poems.iter().map(|p| p.title.as_str()).collect();
         assert_eq!(titles, vec!["Cam", "Çiçek", "Sabah", "Şafak"]);
-        assert!(collections(&[("Boş".into(), vec![])], "S").is_empty());
+        // An empty folder is still a collection; it just has no book yet.
+        let empty = collections(&[("Boş".into(), vec![])], "S");
+        assert_eq!(empty.len(), 1);
+        assert!(empty[0].poems.is_empty());
     }
 
     #[test]

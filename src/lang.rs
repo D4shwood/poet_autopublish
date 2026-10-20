@@ -144,6 +144,13 @@ impl Lang {
             ),
             "weeks" => ("Haftalar", "Weeks"),
             "collections" => ("Koleksiyonlar", "Collections"),
+            "new_collection" => ("+ Yeni koleksiyon", "+ New collection"),
+            "new_in_collection" => (
+                "Henüz şiir yok · n: bu koleksiyona yeni şiir",
+                "No poems yet · n: new poem in this collection",
+            ),
+            "collection_name" => ("Koleksiyonun adı", "Collection name"),
+            "collection_keys" => ("⏎ oluştur · Esc vazgeç", "⏎ create · Esc cancel"),
             "poems" => ("Şiirler", "Poems"),
             "log" => ("Kayıt", "Log"),
             "watch_service" => ("● servis izliyor", "● service watching"),
