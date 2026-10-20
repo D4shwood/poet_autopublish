@@ -302,9 +302,7 @@ impl App {
             Item::All => self.lib.weeks.iter().map(|w| w.poems.len()).sum(),
             Item::Collection(i) => self.lib.scan.collections[i].1.len(),
             Item::Book | Item::Series | Item::Publications => self.right_poems_for(item).len(),
-            Item::Unsigned => self
-                .with_status(|s| matches!(s, Status::Unsigned | Status::Foreign(_)))
-                .len(),
+            Item::Unsigned => self.with_status(|s| *s == Status::Unsigned).len(),
             Item::Drafts | Item::ContinueDraft => self.with_status(|s| *s == Status::Draft).len(),
             _ => 0,
         }
@@ -379,9 +377,7 @@ impl App {
                 v.sort_by_key(|p| crate::volume::turkish_key(&p.title));
                 v
             }
-            Item::Unsigned => {
-                self.with_status(|s| matches!(s, Status::Unsigned | Status::Foreign(_)))
-            }
+            Item::Unsigned => self.with_status(|s| *s == Status::Unsigned),
             Item::Drafts | Item::ContinueDraft | Item::NewPoem => {
                 let mut v = self.with_status(|s| *s == Status::Draft);
                 v.sort_by_key(|p| std::cmp::Reverse(mtime(&p.path)));
