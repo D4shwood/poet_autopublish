@@ -127,7 +127,7 @@ fun Header(space: String, status: String) {
             Modifier.weight(1f),
             maxLines = 1,
         )
-        Txt("$status ", color = T.MUTED, maxLines = 1)
+        Txt("  $status ", color = T.MUTED, maxLines = 1)
     }
 }
 
@@ -198,9 +198,9 @@ data class Key(val label: String, val onClick: () -> Unit)
 fun FooterKeys(keys: List<Key>, modifier: Modifier = Modifier) {
     FlowRow(modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 4.dp)) {
         keys.forEachIndexed { i, k ->
-            Row {
-                if (i > 0) Txt(" · ", color = T.FAINT)
-                Txt(k.label, Modifier.clickable(onClick = k.onClick).padding(vertical = 6.dp), color = T.MUTED)
+            Row(Modifier.padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                if (i > 0) Txt(" · ", color = T.MUTED)
+                Txt(k.label, Modifier.clickable(onClick = k.onClick), color = T.MUTED)
             }
         }
     }

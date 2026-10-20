@@ -213,7 +213,7 @@ fun WriterScreen(ui: Ui, openKey: String?, collection: String?, onBack: () -> Un
         val state = if (signed) ui.t("signed") else ui.t("draft")
         val status = "${lineCount(ls)} ${ui.t("lines")} · ${wordCount(ls)} ${ui.t("words")} · $mins ${ui.t("min")} · " +
             "${ui.vm.now()} · $saved · $state" + if (typewriter) " · ⌨" else ""
-        Txt(" $status", Modifier.padding(top = 2.dp), color = T.FAINT, maxLines = 1)
+        Txt(" $status", Modifier.padding(top = 2.dp, start = 2.dp, end = 2.dp), color = T.FAINT, maxLines = 2)
         val p = prompt
         when {
             p != null -> PromptLine(ui, p) { prompt = null }

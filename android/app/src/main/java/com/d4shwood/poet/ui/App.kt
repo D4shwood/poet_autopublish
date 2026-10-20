@@ -228,9 +228,9 @@ fun Frame(
     body: @Composable () -> Unit,
 ) {
     val flash by ui.vm.flash.collectAsState()
-    val status by ui.vm.status.collectAsState()
+    val sync by ui.vm.sync.collectAsState()
     Column(Modifier.fillMaxSize()) {
-        Header(ui.spaceName, status)
+        Header(ui.spaceName, ui.vm.statusText(sync))
         Box(Modifier.weight(1f).padding(horizontal = 2.dp)) { body() }
         when {
             prompt != null -> PromptLine(ui, prompt, closePrompt)

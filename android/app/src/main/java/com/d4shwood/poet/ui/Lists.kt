@@ -103,7 +103,8 @@ fun PublicationsPanel(ui: Ui, focused: Boolean) {
         val cell = cellWidth()
         BoxWithConstraints(Modifier.fillMaxSize()) {
             val cells = (maxWidth / cell).toInt()
-            val titleW = if (cells >= 64) 30 else (cells - 22).coerceAtLeast(10)
+            val wide = cells >= 64
+            val titleW = if (wide) 30 else (cells - 21).coerceAtLeast(10)
             LazyColumn(Modifier.fillMaxSize()) {
                 var lastJournal: String? = null
                 var lastIssue: String? = "\u0000"
@@ -131,8 +132,9 @@ fun PublicationsPanel(ui: Ui, focused: Boolean) {
                                     color = if (on) T.BG else T.FG, maxLines = 1,
                                 )
                                 Txt(" " + fit(e.`when`, 12), color = T.FAINT, maxLines = 1)
-                                e.shownAuthor?.let { Txt(" $it", color = T.MUTED, maxLines = 1) }
+                                if (wide) e.shownAuthor?.let { Txt(" $it", color = T.MUTED, maxLines = 1) }
                             }
+                            if (!wide) e.shownAuthor?.let { Txt("$indent  $it", color = T.MUTED, maxLines = 1) }
                         }
                     }
                 }

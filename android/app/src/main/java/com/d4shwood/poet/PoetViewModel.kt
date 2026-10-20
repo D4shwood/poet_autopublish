@@ -77,11 +77,25 @@ class PoetViewModel(app: Application) : AndroidViewModel(app) {
         }
 
     /** The header's right side: the sync state, as the terminal shows the watcher's. */
-    private val _status = MutableStateFlow("")
-    val status: StateFlow<String> = _status
+    sealed interface Sync {
+        data object Local : Sync
+        data object Running : Sync
+        data class Done(val at: String) : Sync
+        data object Offline : Sync
+    }
+
+    private val _sync = MutableStateFlow<Sync>(Sync.Local)
+    val sync: StateFlow<Sync> = _sync
+
+    fun statusText(st: Sync): String = when (st) {
+        Sync.Local -> s("local")
+        Sync.Running -> "◐ ${s("syncing")}"
+        is Sync.Done -> "● ${s("synced")} ${st.at}"
+        Sync.Offline -> "○ ${s("offline")}"
+    }
 
     init {
-        _status.value = if (repo != null) "◐ ${s("syncing")}" else s("local")
+        _sync.value = if (repo != null) Sync.Running else Sync.Local
         if (setUp) refresh()
         if (repo != null) {
             syncNow()
@@ -103,15 +117,15 @@ class PoetViewModel(app: Application) : AndroidViewModel(app) {
 
     fun syncNow() {
         val sync = githubSync(getApplication()) ?: return
-        _status.value = "◐ ${s("syncing")}"
+        _sync.value = Sync.Running
         viewModelScope.launch {
             val result = withContext(Dispatchers.IO) { runCatching { SyncLock.withLock { sync.sync() } } }
             result.onSuccess { out ->
-                _status.value = "● ${s("synced")} ${now()}"
+                _sync.value = Sync.Done(now())
                 out.conflicts.forEach { say(s("conflict").format(it)) }
                 if (out.pulled > 0 || out.conflicts.isNotEmpty() || _load.value !is Load.Ready) refresh()
             }.onFailure {
-                _status.value = "○ ${s("offline")}"
+                _sync.value = Sync.Offline
                 say(it.message ?: it.toString())
             }
         }
@@ -205,7 +219,7 @@ class PoetViewModel(app: Application) : AndroidViewModel(app) {
             }
             if (fetched?.isFailure == true) {
                 say(fetched.exceptionOrNull()?.message ?: "sync")
-                _status.value = "○ ${S.get(lang, "offline")}"
+                _sync.value = Sync.Offline
             }
             withContext(Dispatchers.IO) {
                 val old = st.shared()
@@ -224,7 +238,7 @@ class PoetViewModel(app: Application) : AndroidViewModel(app) {
                 syncNow()
                 SyncWorker.schedule(app)
             } else {
-                _status.value = S.get(lang, "local")
+                _sync.value = Sync.Local
             }
             done()
         }

@@ -1,6 +1,14 @@
 package com.d4shwood.poet.ui
 
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.ui.Alignment
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -54,12 +62,15 @@ fun StatsScreen(ui: Ui) {
                             val height = 8uL
                             val hmax = (s.byHour.maxOrNull() ?: 1uL).coerceAtLeast(1uL)
                             val col = if (cells >= 48) 2 else 1
-                            for (level in height downTo 1uL) {
-                                val row = s.byHour.joinToString("") { n ->
-                                    val filled = n > 0uL && (n * height + hmax - 1uL) / hmax >= level
-                                    (if (filled) "█" else " ").padEnd(col)
+                            // Solid columns one cell wide, as the terminal's █ cells stack.
+                            val cellW = cellWidth()
+                            Row(Modifier.padding(start = cellW).height(cellW * 2 * height.toInt()), verticalAlignment = Alignment.Bottom) {
+                                for (n in s.byHour) {
+                                    val rows = if (n == 0uL) 0uL else (n * height + hmax - 1uL) / hmax
+                                    Box(Modifier.width(cellW * col).fillMaxHeight(rows.toFloat() / height.toFloat())) {
+                                        if (rows > 0uL) Box(Modifier.width(cellW).fillMaxHeight().background(T.ACCENT))
+                                    }
                                 }
-                                Txt(" $row", color = T.ACCENT, maxLines = 1)
                             }
                             val axis = (0 until 24).joinToString("") { h ->
                                 if (h % 6 == 0) "%02d".format(h).padEnd(col * 6).take(col * 6) else ""

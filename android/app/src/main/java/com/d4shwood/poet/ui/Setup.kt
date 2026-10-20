@@ -46,7 +46,8 @@ private const val SUMMARY = 6
 @Composable
 fun SetupScreen(vm: PoetViewModel, first: Boolean, done: () -> Unit) {
     val start = remember { vm.currentSetup() }
-    var step by rememberSaveable { mutableIntStateOf(NAME) }
+    // Where first: a folder the computer already set up says who you are.
+    var step by rememberSaveable { mutableIntStateOf(WHERE) }
     var name by rememberSaveable { mutableStateOf(start.name) }
     var pens by rememberSaveable { mutableStateOf(start.pens.joinToString(", ")) }
     var series by rememberSaveable { mutableStateOf(start.series) }
@@ -57,7 +58,7 @@ fun SetupScreen(vm: PoetViewModel, first: Boolean, done: () -> Unit) {
     val ctx = LocalContext.current
     val hasToken = remember { start.repo != null && com.d4shwood.poet.sync.Secret.load(ctx) != null }
     // The steps this path goes through: a repo and token, or a picked folder.
-    val steps = if (github) listOf(NAME, PENS, SERIES, WHERE, REPO, TOKEN, SUMMARY) else listOf(NAME, PENS, SERIES, WHERE, SUMMARY)
+    val steps = if (github) listOf(WHERE, REPO, TOKEN, NAME, PENS, SERIES, SUMMARY) else listOf(WHERE, NAME, PENS, SERIES, SUMMARY)
     var error by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
     val s = { key: String -> vm.s(key) }
@@ -71,6 +72,16 @@ fun SetupScreen(vm: PoetViewModel, first: Boolean, done: () -> Unit) {
             folder = uri
             github = false
             error = null
+            // The folder's .poet/ (written by the computer) fills in the answers.
+            runCatching {
+                val known = uniffi.poet_core.PoetCore(emptyList(), com.d4shwood.poet.store.SafStore(context, uri).shared())
+                val p = known.profile()
+                if (p.author.isNotBlank()) {
+                    name = p.author
+                    series = p.series
+                    pens = known.authors().getOrNull(known.mainAuthor().toInt())?.penNames.orEmpty().joinToString(", ")
+                }
+            }
         }
     }
 
@@ -157,7 +168,7 @@ fun SetupScreen(vm: PoetViewModel, first: Boolean, done: () -> Unit) {
         }
         FooterKeys(buildList {
             add(Key(if (step == SUMMARY) s("save") else s("next")) { next() })
-            if (step > NAME || !first) add(Key(s("back")) { back() })
+            if (steps.indexOf(step) > 0 || !first) add(Key(s("back")) { back() })
         })
     }
 }

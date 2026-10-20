@@ -20,6 +20,10 @@ computer.
 Once, on Arch / CachyOS: `./setup-toolchain.sh` (JDK 17, rustup with the
 Android targets, cargo-ndk, the Android SDK and NDK, and the Gradle wrapper).
 
+For testing on this computer, `./setup-waydroid.sh` once, then
+`./waydroid-window.sh` opens Android in a phone-sized window and connects adb.
+(With ufw on, allow the Waydroid interface: `sudo ufw allow in on waydroid0`.)
+
 Then:
 
 ```sh
