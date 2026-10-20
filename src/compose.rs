@@ -92,25 +92,41 @@ pub fn line_count(lines: &[String]) -> usize {
         .count()
 }
 
-/// A file name from a title: `/` replaced, Turkish letters kept.
+/// A file name from a title: `/` replaced, Turkish letters kept. On Windows
+/// the characters and names it forbids are replaced too.
 pub fn sanitize(title: &str) -> String {
+    sanitize_for(title, cfg!(windows))
+}
+
+/// Names Windows keeps for devices, whatever the extension.
+const RESERVED: [&str; 22] = [
+    "CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8",
+    "COM9", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9",
+];
+
+pub fn sanitize_for(title: &str, windows: bool) -> String {
+    let forbidden =
+        |c: char| c == '/' || c == '\\' || c.is_control() || (windows && "<>:\"|?*".contains(c));
     let s: String = title
         .trim()
         .chars()
-        .map(|c| {
-            if c == '/' || c == '\\' || c.is_control() {
-                '-'
-            } else {
-                c
-            }
-        })
+        .map(|c| if forbidden(c) { '-' } else { c })
         .collect();
-    let s = s.trim_start_matches(['.', '_']).trim().to_string();
-    if s.is_empty() {
-        "Adsız".into()
-    } else {
-        s.chars().take(80).collect()
+    let mut s: String = s
+        .trim_start_matches(['.', '_'])
+        .trim()
+        .chars()
+        .take(80)
+        .collect();
+    if windows {
+        // Windows drops trailing dots and spaces, so "Son." and "Son" would collide.
+        s = s.trim_end_matches(['.', ' ']).to_string();
+        let stem = s.split('.').next().unwrap_or("").to_ascii_uppercase();
+        if RESERVED.contains(&stem.as_str()) {
+            s.push('_');
+        }
     }
+    if s.is_empty() { "Adsız".into() } else { s }
 }
 
 /// `name`, or `name (2)`, `name (3)`… — the first one `taken` says is free.
@@ -171,6 +187,15 @@ mod tests {
     fn names() {
         assert_eq!(sanitize("Kum/Fener"), "Kum-Fener");
         assert_eq!(sanitize(" ._ "), "Adsız");
+        // Windows' forbidden characters, trailing dots and device names.
+        assert_eq!(
+            sanitize_for("Neden? Niçin: \"biz\"", true),
+            "Neden- Niçin- -biz-"
+        );
+        assert_eq!(sanitize_for("Neden?", false), "Neden?");
+        assert_eq!(sanitize_for("Hamd olsun. Son.", true), "Hamd olsun. Son");
+        assert_eq!(sanitize_for("con", true), "con_");
+        assert_eq!(sanitize_for("Konser", true), "Konser");
         let taken = ["Liman", "Liman (2)"];
         assert_eq!(unique_name("Liman", |n| taken.contains(&n)), "Liman (3)");
         assert_eq!(unique_name("Kum", |n| taken.contains(&n)), "Kum");

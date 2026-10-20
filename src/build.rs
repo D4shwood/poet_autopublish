@@ -115,6 +115,13 @@ impl Report {
     }
 }
 
+/// How to get a TeX that builds the PDFs, on this platform.
+const INSTALL_TEX: &str = if cfg!(windows) {
+    "Install MiKTeX (miktex.org) or TeX Live; a built-in PDF engine is planned."
+} else {
+    "Install it with:\n  sudo pacman -S texlive-xetex texlive-latexrecommended texlive-latexextra"
+};
+
 pub fn check_deps() -> Result<()> {
     let ok = Command::new("xelatex")
         .arg("--version")
@@ -122,9 +129,7 @@ pub fn check_deps() -> Result<()> {
         .map(|o| o.status.success())
         .unwrap_or(false);
     if !ok {
-        bail!(
-            "xelatex not found. Install it with:\n  sudo pacman -S texlive-xetex texlive-latexrecommended texlive-latexextra"
-        );
+        bail!("xelatex not found, so no PDFs are built (writing works without it). {INSTALL_TEX}");
     }
     let missing: Vec<&str> = STYLES
         .iter()
@@ -139,7 +144,7 @@ pub fn check_deps() -> Result<()> {
         .collect();
     if !missing.is_empty() {
         bail!(
-            "missing LaTeX packages: {}. Install them with:\n  sudo pacman -S texlive-latexrecommended texlive-latexextra",
+            "missing LaTeX packages: {}. {INSTALL_TEX}",
             missing.join(", ")
         );
     }
