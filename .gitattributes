@@ -1,0 +1,3 @@
+# Windows files keep Windows line endings.
+packaging/windows/*.cmd eol=crlf
+packaging/windows/*.iss eol=crlf
