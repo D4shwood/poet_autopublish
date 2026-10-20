@@ -24,8 +24,9 @@ pub const DRAFT_TAGS: [&str; 2] = ["#taslak", "#draft"];
 #[derive(Debug, Clone, PartialEq)]
 pub struct Signature {
     pub author: String,
-    pub date: NaiveDate,
     pub time: Option<NaiveTime>,
+    /// None when the signature has no date at all.
+    pub date: Option<NaiveDate>,
     /// `~08.10.2026`: the exact day is unknown; only its week is.
     pub approx: bool,
     /// Whatever follows the date and time: where the poem was published,
@@ -108,7 +109,7 @@ impl Signature {
             .filter(|s| !s.is_empty());
         Some(Signature {
             author,
-            date,
+            date: Some(date),
             time: if approx { None } else { time },
             approx,
             publication,
@@ -121,19 +122,52 @@ impl Signature {
     }
 
     /// Date used for week grouping: early-morning poems belong to the night before.
-    pub fn effective_date(&self, cutoff: NaiveTime) -> NaiveDate {
-        match self.time {
-            Some(t) if t < cutoff => self.date - Duration::days(1),
-            _ => self.date,
-        }
+    /// None for an undated signature.
+    pub fn effective_date(&self, cutoff: NaiveTime) -> Option<NaiveDate> {
+        let date = self.date?;
+        Some(match self.time {
+            Some(t) if t < cutoff => date - Duration::days(1),
+            _ => date,
+        })
     }
 
-    /// Poems with an approximate date sort after the dated ones of their week.
-    pub fn sort_key(&self) -> (bool, NaiveDateTime) {
+    /// Undated poems sort last, then approximate ones, then by date and time.
+    pub fn sort_key(&self) -> (bool, bool, NaiveDateTime) {
         (
+            self.date.is_none(),
             self.approx,
-            self.date.and_time(self.time.unwrap_or(NaiveTime::MIN)),
+            self.date
+                .unwrap_or(NaiveDate::MAX)
+                .and_time(self.time.unwrap_or(NaiveTime::MIN)),
         )
+    }
+
+    /// A signature without a date: `- K.M Ozan Deniz. Mürekkep #2`. It only counts
+    /// when it starts with a name the author table knows, so a poem whose last
+    /// line merely begins with a dash isn't mistaken for a signature.
+    pub fn parse_undated(line: &str, authors: &Authors) -> Option<Signature> {
+        let rest = line.trim_start().strip_prefix(['-', '–', '—'])?.trim();
+        let words: Vec<&str> = rest.split_whitespace().collect();
+        for k in (1..=words.len()).rev() {
+            let name = words[..k].join(" ");
+            let name = name.trim_end_matches([',', '.']).trim();
+            if name.is_empty() || authors.find(name).is_none() {
+                continue;
+            }
+            let publication = words[k..]
+                .join(" ")
+                .trim_start_matches(['-', '–', '—', '·', ',', '.', ' '])
+                .trim()
+                .to_string();
+            return Some(Signature {
+                author: name.to_string(),
+                date: None,
+                time: None,
+                approx: false,
+                publication: (!publication.is_empty()).then_some(publication),
+            });
+        }
+        None
     }
 }
 
@@ -320,6 +354,30 @@ pub struct Scan {
 }
 
 impl Scan {
+    /// Reads undated signatures, which needs the author table, so it runs after
+    /// scanning: a last line like `- K.M Ozan Deniz. Mürekkep #2`.
+    pub fn sign_undated(&mut self, authors: &Authors) {
+        let all = self
+            .poems
+            .iter_mut()
+            .chain(self.collections.iter_mut().flat_map(|(_, p)| p.iter_mut()));
+        for p in all {
+            if p.signature.is_some() {
+                continue;
+            }
+            let Some(i) = p.body.iter().rposition(|l| !l.trim().is_empty()) else {
+                continue;
+            };
+            if let Some(sig) = Signature::parse_undated(&p.body[i], authors) {
+                p.signature = Some(sig);
+                p.body.truncate(i);
+                while p.body.last().is_some_and(|l| l.trim().is_empty()) {
+                    p.body.pop();
+                }
+            }
+        }
+    }
+
     /// Contra Noir poems followed by every collection's poems.
     pub fn all_poems(&self) -> impl Iterator<Item = &Poem> {
         self.poems
@@ -408,7 +466,7 @@ mod tests {
     fn signature_variants() {
         let s = Signature::parse("- Deniz Yalın. 13.10.2026 - 22.58").unwrap();
         assert_eq!(s.author, "Deniz Yalın");
-        assert_eq!(s.date, NaiveDate::from_ymd_opt(2026, 10, 13).unwrap());
+        assert_eq!(s.date, NaiveDate::from_ymd_opt(2026, 10, 13));
         assert_eq!(s.time, Some(t(22, 58)));
 
         let s = Signature::parse("Deniz Yalın 13/10/2026 22:58").unwrap();
@@ -421,7 +479,7 @@ mod tests {
         let s = Signature::parse("-Deniz Yalın ~08.10.2026").unwrap();
         assert_eq!(s.author, "Deniz Yalın");
         assert!(s.approx);
-        assert_eq!(s.date, NaiveDate::from_ymd_opt(2026, 10, 8).unwrap());
+        assert_eq!(s.date, NaiveDate::from_ymd_opt(2026, 10, 8));
         assert!(
             !Signature::parse("- Deniz Yalın. 09.10.2026")
                 .unwrap()
@@ -432,7 +490,7 @@ mod tests {
         // Anything after the date and time is where the poem was published.
         let s = Signature::parse("- K.M Ozan. 31.10.2024 Mürekkep #0").unwrap();
         assert_eq!(s.author, "K.M Ozan");
-        assert_eq!(s.date, NaiveDate::from_ymd_opt(2024, 10, 31).unwrap());
+        assert_eq!(s.date, NaiveDate::from_ymd_opt(2024, 10, 31));
         assert_eq!(s.publication.as_deref(), Some("Mürekkep #0"));
         let s = Signature::parse("- Deniz Yalın. 13.10.2026 - 22.58 · Kitap, 2. baskı").unwrap();
         assert_eq!(s.time, Some(t(22, 58)));
@@ -455,12 +513,12 @@ mod tests {
         let s = Signature::parse("- S. 12.10.2026 - 00.17").unwrap();
         assert_eq!(
             s.effective_date(t(5, 0)),
-            NaiveDate::from_ymd_opt(2026, 10, 11).unwrap()
+            NaiveDate::from_ymd_opt(2026, 10, 11)
         );
         let s = Signature::parse("- S. 12.10.2026").unwrap();
         assert_eq!(
             s.effective_date(t(5, 0)),
-            NaiveDate::from_ymd_opt(2026, 10, 12).unwrap()
+            NaiveDate::from_ymd_opt(2026, 10, 12)
         );
     }
 
@@ -507,6 +565,36 @@ mod tests {
         let p = Publication::parse("Örnek Yayın #3: Almanak");
         assert_eq!(p.issue_label().as_deref(), Some("#3 · Almanak"));
         assert_eq!(Publication::parse("Bir Dergi").issue_label(), None);
+    }
+
+    #[test]
+    fn undated_signatures() {
+        let authors = Authors::new(
+            vec![crate::authors::Author {
+                name: "Deniz Yalın".into(),
+                pen_names: vec!["K.M Ozan Deniz".into()],
+            }],
+            "Deniz Yalın",
+        );
+        let s = Signature::parse_undated("- K.M Ozan Deniz. Mürekkep #2", &authors).unwrap();
+        assert_eq!(s.author, "K.M Ozan Deniz");
+        assert_eq!(s.date, None);
+        assert_eq!(s.publication.as_deref(), Some("Mürekkep #2"));
+        assert!(Signature::parse_undated("- Deniz Yalın", &authors).is_some());
+        // A last line that merely starts with a dash stays part of the poem.
+        assert!(Signature::parse_undated("- Neden? dedi.", &authors).is_none());
+
+        let mut scan = Scan {
+            poems: vec![Poem::parse(
+                Path::new("Dawn"),
+                "Dawn\n\nQuietly\n\n- K.M Ozan Deniz. Mürekkep #2\n",
+            )],
+            ..Default::default()
+        };
+        scan.sign_undated(&authors);
+        let p = &scan.poems[0];
+        assert_eq!(p.body, vec!["Quietly"]);
+        assert_eq!(p.status(&authors), Status::Published);
     }
 
     #[test]

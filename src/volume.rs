@@ -43,8 +43,11 @@ pub fn group(
         if p.status(authors) != Status::Published {
             continue;
         }
-        let sig = p.signature.as_ref().unwrap();
-        let iso = sig.effective_date(cutoff).iso_week();
+        // An undated poem can't belong to a week; it lives in collections only.
+        let Some(date) = p.signature.as_ref().unwrap().effective_date(cutoff) else {
+            continue;
+        };
+        let iso = date.iso_week();
         by_week
             .entry((iso.year(), iso.week()))
             .or_default()
@@ -63,7 +66,7 @@ pub fn group(
             // approximate ones, even though those are listed last.
             let first_date = poems
                 .iter()
-                .map(|p| p.signature.as_ref().unwrap().effective_date(cutoff))
+                .filter_map(|p| p.signature.as_ref().unwrap().effective_date(cutoff))
                 .min()
                 .unwrap();
             let epigraph = epigraphs

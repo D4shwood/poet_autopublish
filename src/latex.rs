@@ -100,27 +100,27 @@ pub fn footer_text(p: &Poem, ctx: &Ctx) -> String {
     let Some(sig) = &p.signature else {
         return String::new();
     };
-    // An approximate date only claims its week: "Ekim 2026 · 2. hafta".
-    let mut s = if sig.approx {
-        ctx.lang.month_week(sig.date)
-    } else {
-        ctx.lang.date_long(sig.date)
-    };
+    let mut parts: Vec<String> = vec![];
     // A pen name is shown; the real name isn't, as it is on the cover.
     if crate::authors::norm(&sig.author) != crate::authors::norm(ctx.real_name) {
-        s = format!("{} · {s}", sig.author);
+        parts.push(sig.author.clone());
+    }
+    // An approximate date only claims its week: "Ekim 2026 · 2. hafta".
+    // An undated signature shows no date at all.
+    if let Some(date) = sig.date {
+        parts.push(if sig.approx {
+            ctx.lang.month_week(date)
+        } else {
+            ctx.lang.date_long(date)
+        });
     }
     if let Some(t) = sig.time {
-        s.push_str(&format!(" · {}", t.format("%H.%M")));
+        parts.push(t.format("%H.%M").to_string());
     }
     if let Some(r) = ctx.revisions.get(&p.file_name) {
-        s.push_str(&format!(
-            " · {} {}",
-            ctx.lang.t("rev"),
-            ctx.lang.date_short(*r)
-        ));
+        parts.push(format!("{} {}", ctx.lang.t("rev"), ctx.lang.date_short(*r)));
     }
-    s
+    parts.join(" · ")
 }
 
 /// "ilk yayın: Mürekkep #0", from the text after the signature's date.
@@ -156,10 +156,11 @@ pub fn compiled_date<'p>(poems: impl Iterator<Item = &'p Poem>, ctx: &Ctx) -> Op
     poems
         .filter_map(|p| {
             let sig = p.signature.as_ref()?.date;
-            Some(match ctx.revisions.get(&p.file_name) {
-                Some(r) if *r > sig => *r,
-                _ => sig,
-            })
+            match (ctx.revisions.get(&p.file_name), sig) {
+                (Some(r), Some(s)) => Some((*r).max(s)),
+                (Some(r), None) => Some(*r),
+                (None, s) => s,
+            }
         })
         .max()
 }
