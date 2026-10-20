@@ -19,6 +19,25 @@ Programın adı `poetautopublish`, kısa komutu `poet`.
 
 ## Kurulum
 
+### Windows
+
+[Releases](https://github.com/D4shwood/poet_autopublish/releases) sayfasından
+`poetautopublish-…-windows-setup.exe` dosyasını indirip çalıştır. Yönetici
+izni gerekmez. Başlat menüsüne *poetautopublish* ve *Yeni şiir* girdilerini,
+komut satırı için `poet` komutunu ve bir kaldırıcı ekler. Kurulum dosyası
+imzalı olmadığı için Windows "bilinmeyen yayımcı" uyarısı verebilir:
+**Ek bilgi → Yine de çalıştır**'ı seç.
+
+Ya da `…-windows-portable.zip` dosyasını istediğin yere açıp
+`poetautopublish.exe`'yi çalıştır.
+
+Yazma, imzalama, koleksiyonlar, yayınlar ve istatistikler Windows'ta çalışır.
+PDF'ler için şimdilik XeLaTeX gerekir ([MiKTeX](https://miktex.org) ya da TeX
+Live); dahili bir PDF motoru planlanıyor. Arayüz en iyi Windows 11'in
+terminalinde görünür.
+
+### Linux
+
 Birkaç yaygın paketle birlikte XeLaTeX gerekir. Arch / CachyOS'ta:
 
 ```sh

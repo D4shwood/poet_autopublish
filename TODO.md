@@ -16,8 +16,9 @@
   1. ~~Builds and runs on Windows~~ (done): CI tests and builds it; files open
      with Explorer, Notepad is the fallback editor, file names are Windows-safe,
      and the app works without TeX (no PDFs yet).
-  2. An installer (.exe: Start menu shortcut, the `poet` command, uninstall
-     entry) and a portable .zip, both built by CI on each release.
+  2. ~~An installer and a portable .zip~~ (done): a per-user installer with
+     Start menu entries, the `poet` command and an uninstaller, plus a zip,
+     both built by the release workflow.
   3. Optional background rebuild at sign-in, with a Task Scheduler task.
   4. PDFs: a TeX engine that needs no separate install (likely Tectonic,
      bundled), with the fonts embedded.
