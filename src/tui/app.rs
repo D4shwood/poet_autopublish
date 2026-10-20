@@ -332,34 +332,7 @@ impl App {
             // Sorted journal → issue → title, which is the order the tree is drawn in.
             // The whole issue as an archive: tracked poems by other authors too.
             Item::Publications => {
-                let mut v: Vec<&Poem> = self
-                    .space_poems()
-                    .into_iter()
-                    .filter(|p| {
-                        matches!(
-                            p.status(&self.lib.authors),
-                            Status::Published | Status::Foreign(_)
-                        )
-                    })
-                    .filter(|p| {
-                        p.signature
-                            .as_ref()
-                            .is_some_and(|s| s.publication.is_some())
-                    })
-                    .collect();
-                v.sort_by_key(|p| {
-                    let pubn = p.signature.as_ref().unwrap().publication().unwrap();
-                    let issue = pubn.issue.clone().unwrap_or_default();
-                    (
-                        crate::volume::turkish_key(&pubn.name),
-                        // Issue numbers sort as numbers (#2 before #10), others after.
-                        issue.parse::<u64>().unwrap_or(u64::MAX),
-                        issue,
-                        pubn.edition.unwrap_or_default(),
-                        crate::volume::turkish_key(&p.title),
-                    )
-                });
-                v
+                crate::volume::publication_order(&self.space_poems(), &self.lib.authors)
             }
             Item::Series => self
                 .lib

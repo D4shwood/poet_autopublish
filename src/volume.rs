@@ -30,6 +30,35 @@ impl Week {
     }
 }
 
+/// Poems carrying a publication, sorted journal → issue → title (the order the
+/// publications tree is drawn in). Other authors' poems are included: an issue
+/// is kept whole, as an archive.
+pub fn publication_order<'a>(poems: &[&'a Poem], authors: &Authors) -> Vec<&'a Poem> {
+    let mut v: Vec<&Poem> = poems
+        .iter()
+        .copied()
+        .filter(|p| matches!(p.status(authors), Status::Published | Status::Foreign(_)))
+        .filter(|p| {
+            p.signature
+                .as_ref()
+                .is_some_and(|s| s.publication.is_some())
+        })
+        .collect();
+    v.sort_by_key(|p| {
+        let pubn = p.signature.as_ref().unwrap().publication().unwrap();
+        let issue = pubn.issue.clone().unwrap_or_default();
+        (
+            turkish_key(&pubn.name),
+            // Issue numbers sort as numbers (#2 before #10), others after.
+            issue.parse::<u64>().unwrap_or(u64::MAX),
+            issue,
+            pubn.edition.unwrap_or_default(),
+            turkish_key(&p.title),
+        )
+    });
+    v
+}
+
 /// Groups published poems into weeks, oldest week first.
 pub fn group(
     poems: &[Poem],
