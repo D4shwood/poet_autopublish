@@ -71,6 +71,30 @@ object S {
         "local" to ("○ yerel klasör" to "○ local folder"),
         "search_prompt" to ("/ " to "/ "),
         "no_hits" to ("(sonuç yok)" to "(no results)"),
+        "syncing" to ("eşitleniyor…" to "syncing…"),
+        "synced" to ("eşitlendi" to "synced"),
+        "offline" to ("çevrimdışı" to "offline"),
+        "conflict" to (
+            "%s iki tarafta da değişmiş; telefondaki “(telefon)” olarak saklandı." to
+                "%s changed on both sides; the phone's copy is kept as “(telefon)”."
+            ),
+        "k_pdf" to ("o pdf" to "o pdf"),
+        "where_github" to ("GitHub deposu · bilgisayarla eşitlenir" to "GitHub repo · syncs with the computer"),
+        "where_folder" to ("Telefondaki bir klasör" to "A folder on the phone"),
+        "q_where" to ("Şiirlerin nerede?" to "Where are your poems?"),
+        "h_where" to (
+            "GitHub'daki özel depo bilgisayarındaki klasörle eşitlenir; PDF'ler de telefona gelir." to
+                "A private GitHub repo syncs with the folder on your computer; the PDFs come to the phone too."
+            ),
+        "q_repo" to ("Hangi depo?" to "Which repo?"),
+        "h_repo" to ("sahip/ad biçiminde, örneğin D4shwood/poems." to "As owner/name, e.g. D4shwood/poems."),
+        "q_token" to ("Erişim anahtarı (token)" to "Access token"),
+        "h_token" to (
+            "GitHub › Settings › Developer settings › Fine-grained tokens: yalnızca bu depo, Contents: Read and write. Telefonda şifreli saklanır." to
+                "GitHub › Settings › Developer settings › Fine-grained tokens: only this repo, Contents: Read and write. Stored encrypted on the phone."
+            ),
+        "token_kept" to ("(kayıtlı · değiştirmek için yaz)" to "(saved · type to replace)"),
+        "repo" to ("Depo" to "Repo"),
     )
 
     fun get(lang: String, key: String): String =

@@ -46,9 +46,12 @@ dependencies {
     implementation("androidx.activity:activity-compose:1.9.3")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
     implementation("androidx.documentfile:documentfile:1.0.1")
+    implementation("androidx.work:work-runtime-ktx:2.10.0")
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
     // UniFFI's Kotlin bindings call the Rust library through JNA.
     implementation("net.java.dev.jna:jna:5.15.0@aar")
     debugImplementation("androidx.compose.ui:ui-tooling")
+    testImplementation("junit:junit:4.13.2")
 }
 
 // The Rust core: native libraries and Kotlin bindings, rebuilt before each build.

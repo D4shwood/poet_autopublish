@@ -5,7 +5,16 @@ import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import android.content.Intent
+import androidx.core.content.FileProvider
 import com.d4shwood.poet.store.AUTHORS
+import com.d4shwood.poet.store.FileStore
+import com.d4shwood.poet.sync.Paths
+import com.d4shwood.poet.sync.Secret
+import com.d4shwood.poet.sync.SyncLock
+import com.d4shwood.poet.sync.SyncWorker
+import com.d4shwood.poet.sync.githubSync
+import kotlinx.coroutines.Job
 import com.d4shwood.poet.store.PROFILE
 import com.d4shwood.poet.store.PoemStore
 import com.d4shwood.poet.store.SafStore
@@ -45,7 +54,13 @@ class PoetViewModel(app: Application) : AndroidViewModel(app) {
     var folder: Uri? = prefs.getString("folder", null)?.let(Uri::parse)
         private set
 
-    private val _load = MutableStateFlow<Load>(if (folder == null) Load.NotSetUp else Load.Reading)
+    /** "owner/name" of the GitHub repo the poems sync with; the phone keeps its own copy. */
+    var repo: String? = prefs.getString("repo", null)
+        private set
+
+    private val setUp get() = folder != null || repo != null
+
+    private val _load = MutableStateFlow<Load>(if (!setUp) Load.NotSetUp else Load.Reading)
     val load: StateFlow<Load> = _load
 
     /** A short message in place of the footer for four seconds, as in the terminal. */
@@ -55,11 +70,68 @@ class PoetViewModel(app: Application) : AndroidViewModel(app) {
     /** The `.poet/` texts as last read; edits start from these. */
     private var texts = SharedTexts(null, null, null)
 
-    private val store: PoemStore? get() = folder?.let { SafStore(getApplication(), it) }
+    private val store: PoemStore?
+        get() = when {
+            repo != null -> FileStore(Paths.poems(getApplication()))
+            else -> folder?.let { SafStore(getApplication(), it) }
+        }
+
+    /** The header's right side: the sync state, as the terminal shows the watcher's. */
+    private val _status = MutableStateFlow("")
+    val status: StateFlow<String> = _status
 
     init {
-        if (folder != null) refresh()
+        _status.value = if (repo != null) "◐ ${s("syncing")}" else s("local")
+        if (setUp) refresh()
+        if (repo != null) {
+            syncNow()
+            SyncWorker.schedule(app)
+        }
     }
+
+    private var pendingSync: Job? = null
+
+    /** Syncs a few seconds after the last change, so a burst of saves is one commit. */
+    private fun syncSoon() {
+        if (repo == null) return
+        pendingSync?.cancel()
+        pendingSync = viewModelScope.launch {
+            delay(5000)
+            syncNow()
+        }
+    }
+
+    fun syncNow() {
+        val sync = githubSync(getApplication()) ?: return
+        _status.value = "◐ ${s("syncing")}"
+        viewModelScope.launch {
+            val result = withContext(Dispatchers.IO) { runCatching { SyncLock.withLock { sync.sync() } } }
+            result.onSuccess { out ->
+                _status.value = "● ${s("synced")} ${now()}"
+                out.conflicts.forEach { say(s("conflict").format(it)) }
+                if (out.pulled > 0 || out.conflicts.isNotEmpty() || _load.value !is Load.Ready) refresh()
+            }.onFailure {
+                _status.value = "○ ${s("offline")}"
+                say(it.message ?: it.toString())
+            }
+        }
+    }
+
+    /** Opens a built PDF (synced from the computer) in the phone's PDF viewer. */
+    fun openPdf(name: String) {
+        val app = getApplication<Application>()
+        val f = java.io.File(Paths.pdfs(app), name)
+        if (!f.isFile) {
+            say(t("no_pdf"))
+            return
+        }
+        val uri = FileProvider.getUriForFile(app, "${app.packageName}.files", f)
+        val view = Intent(Intent.ACTION_VIEW).setDataAndType(uri, "application/pdf")
+            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+        runCatching { app.startActivity(view) }.onFailure { say(it.message ?: it.toString()) }
+    }
+
+    fun hasPdf(name: String): Boolean = repo != null && java.io.File(Paths.pdfs(getApplication()), name).isFile
 
     /** The UI language: the core's once poems are read, else the phone's. */
     val lang: String
@@ -92,22 +164,49 @@ class PoetViewModel(app: Application) : AndroidViewModel(app) {
 
     // ------------------------------------------------------------ setup
 
-    data class Setup(val name: String, val pens: List<String>, val series: String, val folder: Uri?)
+    /** Where the poems live: a folder on the phone, or a GitHub repo (with its token). */
+    data class Setup(
+        val name: String,
+        val pens: List<String>,
+        val series: String,
+        val folder: Uri?,
+        val repo: String?,
+        val token: String?,
+    )
 
     fun currentSetup(): Setup {
         val core = (_load.value as? Load.Ready)?.core
         val p = core?.profile()
         val main = core?.authors()?.getOrNull(core.mainAuthor().toInt())
-        return Setup(p?.author ?: "", main?.penNames ?: emptyList(), p?.series ?: "Contra Noir", folder)
+        return Setup(p?.author ?: "", main?.penNames ?: emptyList(), p?.series ?: "Contra Noir", folder, repo, null)
     }
 
-    /** Saves who the user is into the folder's `.poet/`, then reads the folder. */
+    /**
+     * Saves where the poems live, fetches them when they're on GitHub, then
+     * writes who the user is into the folder's `.poet/` and reads it.
+     */
     fun saveSetup(s: Setup, done: () -> Unit) {
-        val uri = s.folder ?: return
-        prefs.edit().putString("folder", uri.toString()).apply()
-        folder = uri
-        val st = SafStore(getApplication(), uri)
+        val app = getApplication<Application>()
+        if (s.repo != null) {
+            prefs.edit().putString("repo", s.repo.trim()).remove("folder").apply()
+            s.token?.takeIf { it.isNotBlank() }?.let { Secret.save(app, it) }
+            repo = s.repo.trim()
+            folder = null
+        } else {
+            val uri = s.folder ?: return
+            prefs.edit().putString("folder", uri.toString()).remove("repo").apply()
+            folder = uri
+            repo = null
+        }
+        val st = store ?: return
         viewModelScope.launch {
+            val fetched = withContext(Dispatchers.IO) {
+                githubSync(app)?.let { sync -> runCatching { SyncLock.withLock { sync.sync() } } }
+            }
+            if (fetched?.isFailure == true) {
+                say(fetched.exceptionOrNull()?.message ?: "sync")
+                _status.value = "○ ${S.get(lang, "offline")}"
+            }
             withContext(Dispatchers.IO) {
                 val old = st.shared()
                 val oldProfile = (_load.value as? Load.Ready)?.core?.profile()
@@ -121,6 +220,12 @@ class PoetViewModel(app: Application) : AndroidViewModel(app) {
                 st.writeShared(AUTHORS, setMainAuthor(old.authors, oldProfile?.author ?: s.name, s.name, s.pens))
             }
             refresh()
+            if (repo != null) {
+                syncNow()
+                SyncWorker.schedule(app)
+            } else {
+                _status.value = S.get(lang, "local")
+            }
             done()
         }
     }
@@ -160,6 +265,7 @@ class PoetViewModel(app: Application) : AndroidViewModel(app) {
             val msg = withContext(Dispatchers.IO) { runCatching { work(st) }.getOrElse { it.message ?: it.toString() } }
             msg?.let(::say)
             refresh()
+            syncSoon()
         }
     }
 
@@ -187,7 +293,7 @@ class PoetViewModel(app: Application) : AndroidViewModel(app) {
             }
             st.write(newKey, poemContent(lines, isDraft))
             newKey
-        }
+        }.also { syncSoon() }
 
     fun now(): String = LocalTime.now().format(DateTimeFormatter.ofPattern("HH.mm"))
 }

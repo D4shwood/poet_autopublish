@@ -108,6 +108,15 @@ class Ui(
         else -> emptyList()
     }
 
+    /** The PDF a menu entry stands for: a week's volume, the book, or a collection's. */
+    fun pdfFor(item: Item): String? = when (item) {
+        is Item.Week -> weeks[item.index].pdf
+        Item.All, Item.Book -> spaceInfo.pdf
+        Item.Series -> core.space(null).pdf
+        is Item.Collection -> core.space(item.name).pdf
+        else -> null
+    }
+
     fun count(item: Item): Int = when (item) {
         Item.Publications -> core.publications(space).size
         is Item.Collection -> core.space(item.name).poems.size
@@ -219,8 +228,9 @@ fun Frame(
     body: @Composable () -> Unit,
 ) {
     val flash by ui.vm.flash.collectAsState()
+    val status by ui.vm.status.collectAsState()
     Column(Modifier.fillMaxSize()) {
-        Header(ui.spaceName, ui.s("local"))
+        Header(ui.spaceName, status)
         Box(Modifier.weight(1f).padding(horizontal = 2.dp)) { body() }
         when {
             prompt != null -> PromptLine(ui, prompt, closePrompt)
@@ -270,7 +280,7 @@ fun MainScreen(ui: Ui, prompt: Prompt?, closePrompt: () -> Unit) {
         (selected as? Item.Week)?.let { w ->
             add(Key(ui.s("k_rename")) { renameWeek(ui, w) })
         }
-        add(Key(ui.s("k_refresh")) { ui.vm.refresh() })
+        add(Key(ui.s("k_refresh")) { ui.vm.refresh(); ui.vm.syncNow() })
     }
     BoxWithConstraints(Modifier.fillMaxSize()) {
         // Wide screens get the terminal's two panels; a phone stacks them.
@@ -356,11 +366,12 @@ fun PanelScreen(ui: Ui, item: Item, prompt: Prompt?, closePrompt: () -> Unit) {
     when (item) {
         Item.Stats -> StatsScreen(ui)
         Item.Signatures -> SignaturesScreen(ui, prompt, closePrompt)
-        else -> Frame(ui, prompt, closePrompt, listOf(
-            Key(ui.s("k_back")) { ui.go(Screen.Main) },
-            Key(ui.s("k_new")) { ui.go(Screen.Writer(null, (item as? Item.Collection)?.name ?: ui.space)) },
-            Key(ui.s("k_search")) { ui.go(Screen.Search) },
-        )) { PanelBody(ui, item, focused = true) }
+        else -> Frame(ui, prompt, closePrompt, buildList {
+            add(Key(ui.s("k_back")) { ui.go(Screen.Main) })
+            add(Key(ui.s("k_new")) { ui.go(Screen.Writer(null, (item as? Item.Collection)?.name ?: ui.space)) })
+            add(Key(ui.s("k_search")) { ui.go(Screen.Search) })
+            ui.pdfFor(item)?.takeIf { ui.vm.hasPdf(it) }?.let { pdf -> add(Key(ui.s("k_pdf")) { ui.vm.openPdf(pdf) }) }
+        }) { PanelBody(ui, item, focused = true) }
     }
 }
 

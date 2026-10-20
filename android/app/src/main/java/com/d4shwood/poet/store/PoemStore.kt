@@ -114,3 +114,61 @@ class SafStore(private val context: Context, uri: Uri) : PoemStore {
         const val RAW = "application/octet-stream"
     }
 }
+
+/** A folder of plain files: the phone's own copy of the synced poems repo. */
+class FileStore(val root: java.io.File) : PoemStore {
+    init {
+        root.mkdirs()
+    }
+
+    override fun poems(): List<PoemFile> {
+        val out = mutableListOf<PoemFile>()
+        for (f in root.listFiles().orEmpty().sortedBy { it.name }) {
+            when {
+                f.isFile && isPoemFileName(f.name) -> out += PoemFile(f.name, null, f.readText(), f.lastModified())
+                f.isDirectory && !f.name.startsWith('.') && !f.name.startsWith('_') ->
+                    for (g in f.listFiles().orEmpty().sortedBy { it.name }) {
+                        if (g.isFile && isPoemFileName(g.name)) out += PoemFile(g.name, f.name, g.readText(), g.lastModified())
+                    }
+            }
+        }
+        return out
+    }
+
+    override fun shared(): SharedTexts {
+        fun read(name: String) = java.io.File(root, "$SHARED_DIR/$name").takeIf { it.isFile }?.readText()
+        return SharedTexts(read(PROFILE), read(AUTHORS), read(WEEKS))
+    }
+
+    override fun read(key: String): String? = java.io.File(root, key).takeIf { it.isFile }?.readText()
+
+    override fun write(key: String, text: String) = put(java.io.File(root, key), text)
+
+    override fun rename(key: String, newKey: String) {
+        if (key != newKey) java.io.File(root, key).renameTo(java.io.File(root, newKey))
+    }
+
+    override fun delete(key: String) {
+        java.io.File(root, key).delete()
+    }
+
+    override fun names(collection: String?): List<String> =
+        (if (collection == null) root else java.io.File(root, collection)).list()?.toList() ?: emptyList()
+
+    override fun mkdir(collection: String) {
+        java.io.File(root, collection).mkdirs()
+    }
+
+    override fun writeShared(name: String, text: String) = put(java.io.File(root, "$SHARED_DIR/$name"), text)
+
+    /** Through a temporary file, so a sync never reads half a poem. */
+    private fun put(f: java.io.File, text: String) {
+        f.parentFile?.mkdirs()
+        val tmp = java.io.File(f.parentFile, ".${f.name}.tmp")
+        tmp.writeText(text)
+        if (!tmp.renameTo(f)) {
+            f.writeText(text)
+            tmp.delete()
+        }
+    }
+}
