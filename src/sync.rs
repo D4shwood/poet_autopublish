@@ -32,6 +32,9 @@ pub fn enabled(cfg: &Config) -> bool {
 
 fn git(dir: &Path, args: &[&str]) -> Result<Output> {
     let out = Command::new("git")
+        // Poems stay byte for byte as written on every device: no CRLF on
+        // Windows, so the phone and the computer see the same files.
+        .args(["-c", "core.autocrlf=false", "-c", "core.safecrlf=false"])
         .arg("-C")
         .arg(dir)
         .args(args)
