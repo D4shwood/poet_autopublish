@@ -4,6 +4,7 @@ use super::preview::Page;
 use super::writer::Editor;
 #[cfg(feature = "preview")]
 use super::writer::wrap;
+use crate::authors::norm;
 use crate::poem::Status;
 use crate::stats;
 use chrono::{Datelike, Local};
@@ -517,13 +518,15 @@ fn draw_publications(f: &mut Frame, area: Rect, app: &App) {
         }
         lines.push(Line::from(vec![
             Span::styled(format!("{indent}{:<30}", truncate(&p.title, 30)), style),
-            Span::styled(format!(" {when}"), Style::default().fg(FAINT)),
-            // Other authors' poems are archived here but not published.
+            // A fixed-width date column, so undated poems keep the names aligned.
+            Span::styled(format!(" {when:<12}"), Style::default().fg(FAINT)),
+            // The signature as printed, except your real name (it's on the cover):
+            // your pen names show, and so do other authors.
             Span::styled(
-                if app.lib.authors.is_main(&sig.author) {
+                if norm(&sig.author) == norm(&app.lib.authors.main_author().name) {
                     String::new()
                 } else {
-                    format!("  {}", sig.author)
+                    format!(" {}", sig.author)
                 },
                 Style::default().fg(MUTED),
             ),
