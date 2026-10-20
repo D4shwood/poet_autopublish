@@ -12,7 +12,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import uniffi.poet_core.AuthorEntry
-import uniffi.poet_core.Library
+import uniffi.poet_core.PoetLibrary
 import uniffi.poet_core.PoemFile
 import uniffi.poet_core.Profile
 import uniffi.poet_core.isPoemFileName
@@ -117,7 +117,7 @@ class PoemFolder(private val context: Context, uri: Uri) {
 sealed interface LoadState {
     data object Idle : LoadState
     data object Loading : LoadState
-    data class Ready(val library: Library) : LoadState
+    data class Ready(val library: PoetLibrary) : LoadState
     data class Failed(val message: String) : LoadState
 }
 

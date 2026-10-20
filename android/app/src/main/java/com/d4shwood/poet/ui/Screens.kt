@@ -70,7 +70,7 @@ import com.d4shwood.poet.PoetViewModel
 import com.d4shwood.poet.R
 import com.d4shwood.poet.Settings
 import kotlinx.coroutines.launch
-import uniffi.poet_core.Library
+import uniffi.poet_core.PoetLibrary
 import uniffi.poet_core.PoemInfo
 import uniffi.poet_core.PoemStatus
 
@@ -223,7 +223,7 @@ private fun HomeScreen(
 }
 
 @Composable
-private fun WeeksTab(lib: Library, onOpen: (String) -> Unit) {
+private fun WeeksTab(lib: PoetLibrary, onOpen: (String) -> Unit) {
     if (lib.weeks.isEmpty()) {
         Text(stringResource(R.string.no_weeks), Modifier.padding(20.dp))
         return
@@ -255,7 +255,7 @@ private fun WeeksTab(lib: Library, onOpen: (String) -> Unit) {
 }
 
 @Composable
-private fun PoemsTab(lib: Library, onOpen: (String) -> Unit) {
+private fun PoemsTab(lib: PoetLibrary, onOpen: (String) -> Unit) {
     val poems = lib.poems.sortedWith(compareByDescending<PoemInfo> { it.date ?: "" }.thenBy { it.title })
     LazyColumn(contentPadding = PaddingValues(bottom = 96.dp)) {
         items(poems, key = { it.key }) { p ->
@@ -290,7 +290,7 @@ private fun statusLabel(s: PoemStatus): String? = when (s) {
 }
 
 @Composable
-private fun StatsTab(lib: Library) {
+private fun StatsTab(lib: PoetLibrary) {
     val s = lib.stats
     Column(Modifier.padding(20.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Stat(R.string.stat_poems, s.poems.toString())

@@ -102,7 +102,7 @@ pub struct StatsInfo {
 }
 
 #[derive(uniffi::Record)]
-pub struct Library {
+pub struct PoetLibrary {
     /// "tr" or "en", after resolving "auto".
     pub lang: String,
     pub poems: Vec<PoemInfo>,
@@ -117,7 +117,7 @@ pub fn library(
     files: Vec<PoemFile>,
     profile: Profile,
     week_names: std::collections::HashMap<String, String>,
-) -> Library {
+) -> PoetLibrary {
     let authors = authors(&profile);
     let mut scan = Scan::default();
     let mut folders: std::collections::BTreeMap<String, Vec<Poem>> = Default::default();
@@ -162,7 +162,7 @@ pub fn library(
         Local::now().date_naive(),
     );
 
-    Library {
+    PoetLibrary {
         lang: if lang == Lang::Tr { "tr" } else { "en" }.into(),
         poems: scan.all_poems().map(|p| info(p, &authors)).collect(),
         weeks: weeks
