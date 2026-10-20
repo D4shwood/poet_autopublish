@@ -14,6 +14,7 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Clear, Paragraph, Wrap};
 use std::fs;
 use std::sync::atomic::Ordering;
+use unicode_width::UnicodeWidthStr;
 
 pub const BG: Color = Color::Rgb(0x15, 0x15, 0x15);
 pub const FG: Color = Color::Rgb(0xe6, 0xe6, 0xe6);
@@ -45,11 +46,14 @@ pub fn draw(f: &mut Frame, app: &mut App) {
         return;
     }
 
+    // The key hints wrap onto as many lines as the terminal width needs.
+    let (hint, footer_style) = footer(app);
+    let footer_lines = wrap_hint(&hint, area.width.saturating_sub(2) as usize);
     let [header, body, log, keys] = Layout::vertical([
         Constraint::Length(1),
         Constraint::Min(8),
         Constraint::Length(7),
-        Constraint::Length(1),
+        Constraint::Length(footer_lines.len() as u16),
     ])
     .areas(area);
     draw_header(f, header, app);
@@ -74,6 +78,15 @@ pub fn draw(f: &mut Frame, app: &mut App) {
         draw_log(f, log, app, 0, false);
     }
 
+    let lines: Vec<Line> = footer_lines
+        .into_iter()
+        .map(|l| Line::from(Span::styled(format!(" {l}"), footer_style)))
+        .collect();
+    f.render_widget(Paragraph::new(lines), keys);
+}
+
+/// The bottom line's text: key hints, a prompt, or a passing message.
+fn footer(app: &App) -> (String, Style) {
     let hint = match &app.mode {
         Mode::Confirm(Confirm::Force) => app.t("confirm_force").to_string(),
         Mode::Confirm(Confirm::Trash(p)) => {
@@ -115,10 +128,29 @@ pub fn draw(f: &mut Frame, app: &mut App) {
     } else {
         Style::default().fg(MUTED)
     };
-    f.render_widget(
-        Paragraph::new(Span::styled(format!(" {hint}"), style)),
-        keys,
-    );
+    (hint, style)
+}
+
+/// Splits hints at " · " (or spaces) into lines that fit `width` columns.
+fn wrap_hint(hint: &str, width: usize) -> Vec<String> {
+    let sep = if hint.contains(" · ") { " · " } else { " " };
+    let mut lines: Vec<String> = vec![];
+    let mut cur = String::new();
+    for part in hint.split(sep) {
+        let candidate = if cur.is_empty() {
+            part.to_string()
+        } else {
+            format!("{cur}{sep}{part}")
+        };
+        if candidate.width() > width && !cur.is_empty() {
+            lines.push(std::mem::take(&mut cur));
+            cur = part.to_string();
+        } else {
+            cur = candidate;
+        }
+    }
+    lines.push(cur);
+    lines
 }
 
 fn draw_header(f: &mut Frame, area: Rect, app: &App) {
@@ -508,7 +540,55 @@ fn draw_stats(f: &mut Frame, area: Rect, app: &App) {
 }
 
 fn draw_writer(f: &mut Frame, area: Rect, ed: &mut Editor, lang: crate::lang::Lang) {
-    let [page, status] = Layout::vertical([Constraint::Min(3), Constraint::Length(1)]).areas(area);
+    let mins = ed.started.elapsed().as_secs() / 60;
+    let saved = match (&ed.last_saved, ed.dirty) {
+        (Some(t), false) => format!("{} {}", lang.t("saved"), t.format("%H.%M")),
+        (Some(t), true) => format!("{} {} *", lang.t("saved"), t.format("%H.%M")),
+        (None, _) => lang.t("unsaved").to_string(),
+    };
+    let state = if ed.is_signed() {
+        lang.t("signed")
+    } else {
+        lang.t("draft")
+    };
+    let tw = if ed.typewriter { " · ⌨" } else { "" };
+    let msg = if ed.confirm_sign {
+        lang.t("confirm_sign").to_string()
+    } else {
+        ed.message.clone().unwrap_or_default()
+    };
+    let info = format!(
+        "{} {} · {} {} · {} {} · {} · {} · {}{}",
+        ed.line_count(),
+        lang.t("lines"),
+        ed.word_count(),
+        lang.t("words"),
+        mins,
+        lang.t("min"),
+        Local::now().format("%H.%M"),
+        saved,
+        state,
+        tw
+    );
+    let keys = lang.t("writer_keys").to_string();
+    let show_keys = !ed.confirm_sign && ed.message.is_none();
+    let avail = area.width.saturating_sub(2) as usize;
+    let used = info.width() + if msg.is_empty() { 0 } else { msg.width() + 3 };
+    let one_line = used + if show_keys { keys.width() + 4 } else { 0 } <= avail;
+    let info_lines = wrap_hint(&info, avail);
+    let status_h = if one_line {
+        1
+    } else {
+        info_lines.len()
+            + usize::from(!msg.is_empty())
+            + if show_keys {
+                wrap_hint(&keys, avail).len()
+            } else {
+                0
+            }
+    };
+    let [page, status] =
+        Layout::vertical([Constraint::Min(3), Constraint::Length(status_h as u16)]).areas(area);
     let width = (page.width.saturating_sub(8) as usize).min(76);
     let left_x = page.x + (page.width.saturating_sub(width as u16)) / 2;
     let text_area = Rect {
@@ -587,51 +667,51 @@ fn draw_writer(f: &mut Frame, area: Rect, ed: &mut Editor, lang: crate::lang::La
         f.set_cursor_position(Position::new(text_area.x + cur_col as u16, cy as u16));
     }
 
-    let mins = ed.started.elapsed().as_secs() / 60;
-    let saved = match (&ed.last_saved, ed.dirty) {
-        (Some(t), false) => format!("{} {}", lang.t("saved"), t.format("%H.%M")),
-        (Some(t), true) => format!("{} {} *", lang.t("saved"), t.format("%H.%M")),
-        (None, _) => lang.t("unsaved").to_string(),
-    };
-    let state = if ed.is_signed() {
-        lang.t("signed")
+    // One line when it all fits; otherwise the status and the keys wrap below each other.
+    let faint = Style::default().fg(FAINT);
+    let mut lines: Vec<Line> = vec![];
+    if one_line {
+        let mut spans = vec![Span::styled(format!(" {info}"), faint)];
+        if !msg.is_empty() {
+            spans.push(Span::styled(
+                format!("   {msg}"),
+                Style::default().fg(ACCENT),
+            ));
+        }
+        lines.push(Line::from(spans));
     } else {
-        lang.t("draft")
-    };
-    let tw = if ed.typewriter { " · ⌨" } else { "" };
-    let msg = if ed.confirm_sign {
-        lang.t("confirm_sign").to_string()
-    } else {
-        ed.message.clone().unwrap_or_default()
-    };
-    let line = Line::from(vec![
-        Span::styled(
-            format!(
-                " {} {} · {} {} · {} {} · {} · {} · {}{}",
-                ed.line_count(),
-                lang.t("lines"),
-                ed.word_count(),
-                lang.t("words"),
-                mins,
-                lang.t("min"),
-                Local::now().format("%H.%M"),
-                saved,
-                state,
-                tw
-            ),
-            Style::default().fg(FAINT),
-        ),
-        Span::styled(format!("   {msg}"), Style::default().fg(ACCENT)),
-    ]);
+        for l in info_lines {
+            lines.push(Line::from(Span::styled(format!(" {l}"), faint)));
+        }
+        if !msg.is_empty() {
+            lines.push(Line::from(Span::styled(
+                format!(" {msg}"),
+                Style::default().fg(ACCENT),
+            )));
+        }
+    }
     f.render_widget(Clear, status);
-    f.render_widget(Paragraph::new(line).style(base()), status);
-    let keys = Line::from(Span::styled(
-        format!("{} ", lang.t("writer_keys")),
-        Style::default().fg(FAINT),
-    ))
-    .right_aligned();
-    if !ed.confirm_sign && ed.message.is_none() {
-        f.render_widget(Paragraph::new(keys), status);
+    f.render_widget(Paragraph::new(lines).style(base()), status);
+    if show_keys {
+        let keys_lines: Vec<Line> = if one_line {
+            vec![Line::from(Span::styled(format!("{keys} "), faint)).right_aligned()]
+        } else {
+            wrap_hint(&keys, avail)
+                .into_iter()
+                .map(|l| Line::from(Span::styled(format!(" {l}"), faint)))
+                .collect()
+        };
+        let y = if one_line {
+            status.y
+        } else {
+            status.y + status.height - keys_lines.len() as u16
+        };
+        let r = Rect {
+            y,
+            height: keys_lines.len() as u16,
+            ..status
+        };
+        f.render_widget(Paragraph::new(keys_lines), r);
     }
 }
 
@@ -841,4 +921,16 @@ fn page_number(f: &mut Frame, inner: Rect, n: usize) {
         ),
         r,
     );
+}
+
+#[cfg(test)]
+mod tests {
+    use super::wrap_hint;
+
+    #[test]
+    fn hints_wrap_at_separators() {
+        let lines = wrap_hint("n new · ⏎ open · / search · q quit", 18);
+        assert_eq!(lines, vec!["n new · ⏎ open", "/ search · q quit"]);
+        assert_eq!(wrap_hint("↑↓ · Esc", 80), vec!["↑↓ · Esc"]);
+    }
 }
