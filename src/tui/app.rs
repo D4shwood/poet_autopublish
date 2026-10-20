@@ -37,12 +37,25 @@ pub enum Item {
     Unsigned,
     Drafts,
     Stats,
+    /// Authors, pen names and signature counts.
+    Signatures,
     Quit,
 }
 
 pub enum Confirm {
     Force,
     Trash(PathBuf),
+    RemoveAuthor(usize),
+}
+
+/// The steps of the author prompts on the İmzalar screen.
+pub enum AuthorStep {
+    /// A new author's real name (may be empty).
+    Name,
+    /// …then their first pen name (may be empty, but not both).
+    FirstPen { name: String },
+    /// Another pen name for an existing author.
+    AddPen { author: usize },
 }
 
 pub enum Mode {
@@ -66,6 +79,22 @@ pub enum Mode {
     Preview,
     Confirm(Confirm),
     WatcherMenu,
+    /// The İmzalar screen; `sel` is the highlighted row.
+    Signatures {
+        sel: usize,
+    },
+    /// Typing an author's name or a pen name; `back` is the row to return to.
+    AuthorPrompt {
+        step: AuthorStep,
+        input: String,
+        back: usize,
+    },
+    /// Choosing which author an unclaimed signature belongs to.
+    AssignPen {
+        name: String,
+        sel: usize,
+        back: usize,
+    },
     /// Typing a new name for the week at `idx`.
     /// Typing the name of a new collection.
     NewCollection {
@@ -154,7 +183,7 @@ impl App {
         self.lib.lang.t(key)
     }
 
-    fn say(&mut self, msg: impl Into<String>) {
+    pub fn say(&mut self, msg: impl Into<String>) {
         self.flash = Some((msg.into(), Instant::now()));
     }
 
@@ -191,6 +220,7 @@ impl App {
         items.push(Item::Unsigned);
         items.push(Item::Drafts);
         items.push(Item::Stats);
+        items.push(Item::Signatures);
         items.push(Item::Quit);
         self.items = items;
         self.left = self.left.min(self.items.len() - 1);
@@ -280,7 +310,7 @@ impl App {
     fn with_status(&self, f: impl Fn(&Status) -> bool) -> Vec<&Poem> {
         self.space_poems()
             .into_iter()
-            .filter(|p| f(&p.status(&self.cfg.author)))
+            .filter(|p| f(&p.status(&self.lib.authors)))
             .collect()
     }
 
@@ -321,7 +351,7 @@ impl App {
                 v.sort_by_key(|p| std::cmp::Reverse(mtime(&p.path)));
                 v
             }
-            Item::Stats | Item::Quit | Item::NewCollection => vec![],
+            Item::Stats | Item::Signatures | Item::Quit | Item::NewCollection => vec![],
         }
     }
 
@@ -489,6 +519,7 @@ impl App {
             template: "",
             series: &self.cfg.series,
             author: &self.cfg.author,
+            real_name: &self.lib.authors.main_author().name,
             lang: self.lib.lang,
             revisions: &revisions,
         };
@@ -532,9 +563,9 @@ impl App {
             Mode::Writer(ed) => {
                 ed.insert_str(s);
             }
-            Mode::Rename { input, .. } | Mode::NewCollection { input } => {
-                input.push_str(s.lines().next().unwrap_or(""))
-            }
+            Mode::Rename { input, .. }
+            | Mode::NewCollection { input }
+            | Mode::AuthorPrompt { input, .. } => input.push_str(s.lines().next().unwrap_or("")),
             Mode::Search { query, hits, sel } => {
                 query.push_str(s.lines().next().unwrap_or(""));
                 *hits = search::search(&pool, query);
@@ -634,12 +665,22 @@ impl App {
                 }
                 (Mode::Preview, Action::None)
             }
+            Mode::Signatures { sel } => (super::signatures::key(self, sel, k), Action::None),
+            Mode::AuthorPrompt { step, input, back } => (
+                super::signatures::key_prompt(self, step, input, back, k),
+                Action::None,
+            ),
+            Mode::AssignPen { name, sel, back } => (
+                super::signatures::key_assign(self, name, sel, back, k),
+                Action::None,
+            ),
             Mode::Confirm(c) => {
                 if let KeyCode::Char(ch) = k.code
                     && self.lang().yes(ch)
                 {
                     match c {
                         Confirm::Force => self.start_build(true),
+                        Confirm::RemoveAuthor(i) => super::signatures::remove_author(self, i),
                         Confirm::Trash(p) => match trash::delete(&p) {
                             Ok(()) => {
                                 build::log(&format!("moved to trash: {}", p.display()));
@@ -767,6 +808,7 @@ impl App {
                             }
                         }
                         Item::Stats => self.mode = Mode::Stats,
+                        Item::Signatures => self.mode = Mode::Signatures { sel: 0 },
                         Item::Quit => self.quitting = true,
                         Item::NewCollection => {
                             self.mode = Mode::NewCollection {

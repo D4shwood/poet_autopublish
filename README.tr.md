@@ -60,6 +60,15 @@ boş satır yeni bir kıta başlatır.
   "8 Ekim civarı" demektir. Şiir o haftaya, kesin tarihli şiirlerden sonra
   girer. Alt bilgisinde sadece ayın kaçıncı haftası yazar
   (`Ekim 2026 · 2. hafta`).
+- **Rumuzlar ve diğer yazarlar.** Arayüzdeki *İmzalar* ekranı yazarları ve
+  rumuzlarını listeler. Kendi adınla ya da rumuzlarından biriyle imzaladığın
+  şiirler yayımlanır ve sayfada rumuz görünür. Başka yazarların şiirleri orada
+  takip edilir ama yayımlanmaz. Kimseye ait olmayan imzalar da orada çıkar;
+  ⏎ ile bir yazara bağlarsın. Tablo `~/.config/poetautopublish/authors.toml`
+  dosyasında tutulur.
+- **Nerede yayımlandığı:** imza satırında tarihten (ve saatten) sonra yazılan
+  her şey yayın bilgisidir, örneğin `- K.M Ozan. 31.10.2024 Mürekkep #0`.
+  Tarihin altına *ilk yayın: Mürekkep #0* olarak basılır.
 - **Gece yazmak:** 05.00'ten önce imzalanan şiir bir önceki güne sayılır
   (`night_cutoff`), böylece o gecenin haftasında kalır. Sayfada yine gerçek
   saat görünür.

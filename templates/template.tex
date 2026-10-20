@@ -48,8 +48,8 @@
 \newcommand{\pl}[2]{{\hangindent=\dimexpr#1+2em\relax\hangafter=1\hspace*{#1}#2\par}}
 % \stanza{lines}: gap before a stanza, kept together where possible.
 \newcommand{\stanza}[1]{\vspace{0.75\baselineskip}\needspace{#1\baselineskip}}
-% \poemfooter{text}: bottom right of the poem's last page.
-\newcommand{\poemfooter}[1]{\par\vfill\hfill{\color{muted}\small #1}\par}
+% \poemfooter{text}: bottom right of the poem's last page; \\ starts another line.
+\newcommand{\poemfooter}[1]{\par\vfill{\raggedleft\color{muted}\small #1\par}}
 
 % \cover{series}{subtitle}{author}{meta}{epigraph}
 \newcommand{\cover}[5]{%

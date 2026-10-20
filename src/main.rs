@@ -1,3 +1,4 @@
+mod authors;
 mod build;
 mod config;
 mod history;

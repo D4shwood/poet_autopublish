@@ -1,3 +1,4 @@
+use crate::authors::Authors;
 use crate::lang::Lang;
 use crate::poem::{Epigraph, Poem, Status};
 use chrono::{Datelike, NaiveDate, NaiveTime};
@@ -33,13 +34,13 @@ impl Week {
 pub fn group(
     poems: &[Poem],
     epigraphs: &[Epigraph],
-    author: &str,
+    authors: &Authors,
     cutoff: NaiveTime,
     series: &str,
 ) -> Vec<Week> {
     let mut by_week: BTreeMap<(i32, u32), Vec<Poem>> = BTreeMap::new();
     for p in poems {
-        if p.status(author) != Status::Published {
+        if p.status(authors) != Status::Published {
             continue;
         }
         let sig = p.signature.as_ref().unwrap();
@@ -115,13 +116,13 @@ pub struct Collection {
     pub file_name: String,
 }
 
-pub fn collections(folders: &[(String, Vec<Poem>)], author: &str) -> Vec<Collection> {
+pub fn collections(folders: &[(String, Vec<Poem>)], authors: &Authors) -> Vec<Collection> {
     folders
         .iter()
         .map(|(name, poems)| {
             let mut poems: Vec<Poem> = poems
                 .iter()
-                .filter(|p| p.status(author) == Status::Published)
+                .filter(|p| p.status(authors) == Status::Published)
                 .cloned()
                 .collect();
             poems.sort_by_key(|p| turkish_key(&p.title));
@@ -208,7 +209,13 @@ mod tests {
             poem("Gece", "- Deniz Yalın. 12.10.2026 - 00.30"), // Monday night -> Sunday
             poem("B10", "B00"),
         ];
-        let weeks = group(&poems, &[], "Deniz Yalın", cutoff, "Contra Noir");
+        let weeks = group(
+            &poems,
+            &[],
+            &Authors::new(vec![], "Deniz Yalın"),
+            cutoff,
+            "Contra Noir",
+        );
         assert_eq!(weeks.len(), 2);
         assert_eq!(weeks[0].file_name, "contra_noir_08_10_week.pdf");
         assert_eq!(weeks[0].number, 1);
@@ -226,7 +233,13 @@ mod tests {
             .cloned()
             .collect();
         more.push(poem("Yaklaşık", "-Deniz Yalın ~08.10.2026"));
-        let weeks = group(&more, &[], "Deniz Yalın", cutoff, "Contra Noir");
+        let weeks = group(
+            &more,
+            &[],
+            &Authors::new(vec![], "Deniz Yalın"),
+            cutoff,
+            "Contra Noir",
+        );
         let titles: Vec<_> = weeks[0].poems.iter().map(|p| p.title.as_str()).collect();
         assert_eq!(titles, vec!["Rüzgârda", "Gece", "Yaklaşık"]);
         assert_eq!(weeks[0].file_name, "contra_noir_08_10_week.pdf");
@@ -240,7 +253,13 @@ mod tests {
             poem("A", "- S. 31.12.2026 - 20.00"),
             poem("B", "- S. 02.01.2027 - 20.00"),
         ];
-        let weeks = group(&poems, &[], "S", cutoff, "Contra Noir");
+        let weeks = group(
+            &poems,
+            &[],
+            &Authors::new(vec![], "S"),
+            cutoff,
+            "Contra Noir",
+        );
         assert_eq!(weeks.len(), 1);
         assert_eq!(
             weeks[0].first_date,
@@ -257,12 +276,15 @@ mod tests {
             poem("Cam", "- Deniz Yalın. 04.01.2020"),
             poem("Imzasız", "B00"),
         ];
-        let cs = collections(&[("Eski Şiirler".into(), folder)], "Deniz Yalın");
+        let cs = collections(
+            &[("Eski Şiirler".into(), folder)],
+            &Authors::new(vec![], "Deniz Yalın"),
+        );
         assert_eq!(cs[0].file_name, "eski_siirler.pdf");
         let titles: Vec<_> = cs[0].poems.iter().map(|p| p.title.as_str()).collect();
         assert_eq!(titles, vec!["Cam", "Çiçek", "Sabah", "Şafak"]);
         // An empty folder is still a collection; it just has no book yet.
-        let empty = collections(&[("Boş".into(), vec![])], "S");
+        let empty = collections(&[("Boş".into(), vec![])], &Authors::new(vec![], "S"));
         assert_eq!(empty.len(), 1);
         assert!(empty[0].poems.is_empty());
     }
