@@ -84,6 +84,11 @@ for a name and creates the folder. Press `n` with a collection selected to
 write a new poem straight into it. A collection's book appears once it has its
 first signed poem.
 
+Press ⏎ on a collection to **step into it**. The header then shows its name, and
+the whole interface belongs to it: new poems are saved there, and drafts,
+unsigned poems, search and statistics (per year instead of per week) cover only
+that collection. **◆ Contra Noir** under *Other spaces* takes you back to the series.
+
 ## Output
 
 A week is named after its earliest poem ("5 Ekim Haftası" / "Week of 5

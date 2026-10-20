@@ -26,8 +26,12 @@ pub enum Item {
     ContinueDraft,
     Week(usize),
     All,
-    /// A subfolder's book, outside the weekly series.
+    /// A subfolder's book, outside the weekly series. ⏎ enters it as the space.
     Collection(usize),
+    /// Inside a collection: its book (all its published poems).
+    Book,
+    /// Inside a collection: back to the weekly series.
+    Series,
     /// Creates a collection folder from inside the app.
     NewCollection,
     Unsigned,
@@ -90,6 +94,9 @@ pub struct App {
     pub cfg: Config,
     pub lib: Library,
     pub items: Vec<Item>,
+    /// The space being worked in: None for the weekly series, or a collection's
+    /// folder name. Lists, drafts, search, stats and new poems all follow it.
+    pub space: Option<String>,
     pub left: usize,
     pub right: usize,
     pub focus_right: bool,
@@ -116,6 +123,7 @@ impl App {
             cfg,
             lib,
             items: vec![],
+            space: None,
             left: 0,
             right: 0,
             focus_right: false,
@@ -156,13 +164,28 @@ impl App {
         if let Ok(lib) = build::library(&self.cfg, &self.cfg.poems_dir()) {
             self.lib = lib;
         }
-        let mut items = vec![Item::NewPoem, Item::ContinueDraft];
-        for i in (0..self.lib.weeks.len()).rev() {
-            items.push(Item::Week(i));
+        // A collection that disappeared (renamed or deleted) drops back to the series.
+        if self.space.is_some() && self.space_index().is_none() {
+            self.space = None;
         }
-        items.push(Item::All);
-        for i in 0..self.lib.collections.len() {
-            items.push(Item::Collection(i));
+        let mut items = vec![Item::NewPoem, Item::ContinueDraft];
+        match self.space_index() {
+            None => {
+                for i in (0..self.lib.weeks.len()).rev() {
+                    items.push(Item::Week(i));
+                }
+                items.push(Item::All);
+                for i in 0..self.lib.collections.len() {
+                    items.push(Item::Collection(i));
+                }
+            }
+            Some(cur) => {
+                items.push(Item::Book);
+                items.push(Item::Series);
+                for i in (0..self.lib.collections.len()).filter(|i| *i != cur) {
+                    items.push(Item::Collection(i));
+                }
+            }
         }
         items.push(Item::NewCollection);
         items.push(Item::Unsigned);
@@ -198,11 +221,53 @@ impl App {
         self.items[self.left]
     }
 
+    /// Index of the current collection in `lib.scan.collections` / `lib.collections`.
+    pub fn space_index(&self) -> Option<usize> {
+        let name = self.space.as_ref()?;
+        self.lib
+            .scan
+            .collections
+            .iter()
+            .position(|(n, _)| n == name)
+    }
+
+    /// "Contra Noir", or the collection's name.
+    pub fn space_name(&self) -> String {
+        self.space
+            .clone()
+            .unwrap_or_else(|| self.cfg.series.clone())
+    }
+
+    /// Every poem file of the current space, whatever its status.
+    pub fn space_poems(&self) -> Vec<&Poem> {
+        match self.space_index() {
+            None => self.lib.scan.poems.iter().collect(),
+            Some(i) => self.lib.scan.collections[i].1.iter().collect(),
+        }
+    }
+
+    /// The published poems of the current space.
+    pub fn space_published(&self) -> Vec<&Poem> {
+        match self.space_index() {
+            None => self.lib.weeks.iter().flat_map(|w| w.poems.iter()).collect(),
+            Some(i) => self.lib.collections[i].poems.iter().collect(),
+        }
+    }
+
+    fn enter_space(&mut self, space: Option<String>) {
+        self.space = space;
+        self.left = 0;
+        self.right = 0;
+        self.focus_right = false;
+        self.refresh();
+    }
+
     pub fn count(&self, item: Item) -> usize {
         match item {
             Item::Week(i) => self.lib.weeks[i].poems.len(),
             Item::All => self.lib.weeks.iter().map(|w| w.poems.len()).sum(),
             Item::Collection(i) => self.lib.scan.collections[i].1.len(),
+            Item::Book | Item::Series => self.right_poems_for(item).len(),
             Item::Unsigned => self
                 .with_status(|s| matches!(s, Status::Unsigned | Status::Foreign(_)))
                 .len(),
@@ -211,17 +276,29 @@ impl App {
         }
     }
 
+    /// Poems of the current space with a given status.
     fn with_status(&self, f: impl Fn(&Status) -> bool) -> Vec<&Poem> {
-        self.lib
-            .scan
-            .all_poems()
+        self.space_poems()
+            .into_iter()
             .filter(|p| f(&p.status(&self.cfg.author)))
             .collect()
     }
 
     /// The poems listed in the right panel for the selected item.
     pub fn right_poems(&self) -> Vec<&Poem> {
-        match self.current_item() {
+        self.right_poems_for(self.current_item())
+    }
+
+    fn right_poems_for(&self, item: Item) -> Vec<&Poem> {
+        match item {
+            Item::Book => self.space_published(),
+            Item::Series => self
+                .lib
+                .weeks
+                .iter()
+                .rev()
+                .flat_map(|w| w.poems.iter())
+                .collect(),
             Item::Week(i) => self.lib.weeks[i].poems.iter().collect(),
             Item::All => self
                 .lib
@@ -279,6 +356,10 @@ impl App {
             Item::Week(i) => Some((out.join(&self.lib.weeks[i].file_name), None)),
             Item::All => Some((out.join(&self.lib.book), None)),
             Item::Collection(i) => Some((out.join(&self.lib.collections[i].file_name), None)),
+            Item::Book => self
+                .space_index()
+                .map(|i| (out.join(&self.lib.collections[i].file_name), None)),
+            Item::Series => Some((out.join(&self.lib.book), None)),
             _ => None,
         }
         .filter(|(p, _)| p.exists())
@@ -337,11 +418,15 @@ impl App {
 
     // ---------------------------------------------------------------- actions
 
-    /// A blank page. With a collection selected, the poem is saved into it.
+    /// A blank page, saved into the current space (or a highlighted collection).
     pub fn new_poem(&mut self) {
         let all: Vec<Poem> = self.lib.scan.all_poems().cloned().collect();
         let mut ed = Editor::new(writer::inspiration(&all));
-        if let Item::Collection(i) = self.current_item() {
+        let target = match self.current_item() {
+            Item::Collection(i) => Some(i),
+            _ => self.space_index(),
+        };
+        if let Some(i) = target {
             ed.dir = Some(self.cfg.poems_dir().join(&self.lib.scan.collections[i].0));
         }
         self.mode = Mode::Writer(Box::new(ed));
@@ -356,21 +441,9 @@ impl App {
         match fs::create_dir_all(&dir) {
             Ok(()) => {
                 build::log(&format!("new collection: {name}"));
+                // Step straight into the new collection.
                 self.refresh();
-                let i = self
-                    .lib
-                    .scan
-                    .collections
-                    .iter()
-                    .position(|(n, _)| *n == name);
-                if let Some(pos) = self
-                    .items
-                    .iter()
-                    .position(|it| matches!(it, Item::Collection(j) if Some(*j) == i))
-                {
-                    self.left = pos;
-                    self.focus_right = false;
-                }
+                self.enter_space(Some(name));
             }
             Err(e) => self.say(format!("{e}")),
         }
@@ -448,7 +521,13 @@ impl App {
 
     // ---------------------------------------------------------------- input
 
+    /// Search covers the current space only.
+    fn search_pool(&self) -> Vec<Poem> {
+        self.space_poems().into_iter().cloned().collect()
+    }
+
     pub fn on_paste(&mut self, s: &str) {
+        let pool = self.search_pool();
         match &mut self.mode {
             Mode::Writer(ed) => {
                 ed.insert_str(s);
@@ -458,10 +537,7 @@ impl App {
             }
             Mode::Search { query, hits, sel } => {
                 query.push_str(s.lines().next().unwrap_or(""));
-                *hits = search::search(
-                    &self.lib.scan.all_poems().cloned().collect::<Vec<_>>(),
-                    query,
-                );
+                *hits = search::search(&pool, query);
                 *sel = 0;
             }
             _ => {}
@@ -697,6 +773,12 @@ impl App {
                                 input: String::new(),
                             }
                         }
+                        // ⏎ on a collection enters it; on Contra Noir goes back.
+                        Item::Collection(i) => {
+                            let name = self.lib.scan.collections[i].0.clone();
+                            self.enter_space(Some(name));
+                        }
+                        Item::Series => self.enter_space(None),
                         _ if n_right > 0 => self.focus_right = true,
                         _ => {}
                     }
@@ -819,10 +901,7 @@ impl App {
             KeyCode::Down => sel = (sel + 1).min(hits.len().saturating_sub(1)),
             KeyCode::Backspace => {
                 query.pop();
-                hits = search::search(
-                    &self.lib.scan.all_poems().cloned().collect::<Vec<_>>(),
-                    &query,
-                );
+                hits = search::search(&self.search_pool(), &query);
                 sel = 0;
             }
             KeyCode::Char(c)
@@ -830,10 +909,7 @@ impl App {
                     || k.modifiers.contains(KeyModifiers::ALT) =>
             {
                 query.push(c);
-                hits = search::search(
-                    &self.lib.scan.all_poems().cloned().collect::<Vec<_>>(),
-                    &query,
-                );
+                hits = search::search(&self.search_pool(), &query);
                 sel = 0;
             }
             _ => {}
