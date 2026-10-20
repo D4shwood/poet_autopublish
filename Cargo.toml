@@ -6,25 +6,39 @@ description = "Write poems in the terminal and publish them as weekly PDF volume
 repository = "https://github.com/D4shwood/poet_autopublish"
 readme = "README.md"
 
+[lib]
+name = "poetautopublish"
+path = "src/lib.rs"
+
+[[bin]]
+name = "poetautopublish"
+path = "src/main.rs"
+required-features = ["app"]
+
 [dependencies]
 anyhow = "1.0.104"
 chrono = { version = "0.4.45", features = ["serde"] }
-clap = { version = "4.6.7", features = ["derive"] }
+clap = { version = "4.6.7", features = ["derive"], optional = true }
 dirs = "7.0.0"
-fs2 = "0.4.3"
-notify = "8.2.0"
-rand = "0.10.3"
-ratatui = "0.30.2"
+fs2 = { version = "0.4.3", optional = true }
+notify = { version = "8.2.0", optional = true }
+rand = { version = "0.10.3", optional = true }
+ratatui = { version = "0.30.2", optional = true }
 regex = "1.13.1"
 serde = { version = "1.0.229", features = ["derive"] }
-serde_json = "1.0.154"
+serde_json = { version = "1.0.154", optional = true }
 sha2 = "0.11.1"
-tempfile = "3.27.0"
+tempfile = { version = "3.27.0", optional = true }
 toml = "1.1.8"
-trash = "5.2.9"
-unicode-width = "0.2.2"
+trash = { version = "5.2.9", optional = true }
+unicode-width = { version = "0.2.2", optional = true }
 
 [features]
+default = ["app"]
+# Everything beyond the shared core: the terminal interface, the builder, the
+# watcher and the installer. The core alone (poems, signatures, authors,
+# weeks, stats) builds with `default-features = false`, e.g. for the phone app.
+app = ["dep:clap", "dep:fs2", "dep:notify", "dep:rand", "dep:ratatui", "dep:serde_json", "dep:tempfile", "dep:trash", "dep:unicode-width"]
 # The `p` text proof of the pages. Suspended for now; build with
 # `--features preview` to try it.
 preview = []
