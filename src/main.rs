@@ -1,15 +1,11 @@
-mod authors;
+pub use poetautopublish::{authors, config, lang, poem, stats, volume};
+
 mod build;
-mod config;
 mod history;
 mod install;
-mod lang;
 mod latex;
-mod poem;
 mod search;
-mod stats;
 mod tui;
-mod volume;
 mod watch;
 
 use anyhow::Result;
