@@ -2,8 +2,12 @@
 //! The terminal app is built on top of it, and the phone app can use it alone.
 
 pub mod authors;
+pub mod compose;
 pub mod config;
+pub mod history;
 pub mod lang;
 pub mod poem;
+pub mod search;
+pub mod shared;
 pub mod stats;
 pub mod volume;

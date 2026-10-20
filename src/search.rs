@@ -1,3 +1,5 @@
+//! Searching poems, with Turkish-aware case folding.
+
 use crate::history;
 use crate::poem::Poem;
 use chrono::NaiveDateTime;
@@ -26,12 +28,30 @@ fn fold(s: &str) -> String {
 
 /// Case-insensitive search over titles and lines of every poem, then their history.
 pub fn search(poems: &[Poem], query: &str) -> Vec<Hit> {
+    let (mut hits, mut seen) = in_poems(poems, query);
     let q = fold(query.trim());
     if q.is_empty() {
-        return vec![];
+        return hits;
     }
+    in_history(poems, &q, &mut hits, &mut seen);
+    hits
+}
+
+/// The same search over the poems as they are now, without their history
+/// (for apps that don't keep snapshots, like the phone).
+pub fn search_text(poems: &[Poem], query: &str) -> Vec<Hit> {
+    in_poems(poems, query).0
+}
+
+type Seen = HashSet<(String, String)>;
+
+fn in_poems(poems: &[Poem], query: &str) -> (Vec<Hit>, Seen) {
+    let q = fold(query.trim());
     let mut hits = vec![];
-    let mut seen: HashSet<(String, String)> = HashSet::new();
+    let mut seen = Seen::new();
+    if q.is_empty() {
+        return (hits, seen);
+    }
     for p in poems {
         for line in std::iter::once(&p.title).chain(p.body.iter()) {
             if fold(line).contains(&q)
@@ -46,13 +66,17 @@ pub fn search(poems: &[Poem], query: &str) -> Vec<Hit> {
             }
         }
     }
+    (hits, seen)
+}
+
+fn in_history(poems: &[Poem], q: &str, hits: &mut Vec<Hit>, seen: &mut Seen) {
     for p in poems {
         for snap in history::list(&p.file_name).iter().rev() {
             let Ok(text) = fs::read_to_string(&snap.path) else {
                 continue;
             };
             for line in text.lines() {
-                if fold(line).contains(&q)
+                if fold(line).contains(q)
                     && seen.insert((p.file_name.clone(), line.trim().to_string()))
                 {
                     hits.push(Hit {
@@ -65,7 +89,6 @@ pub fn search(poems: &[Poem], query: &str) -> Vec<Hit> {
             }
         }
     }
-    hits
 }
 
 #[cfg(test)]

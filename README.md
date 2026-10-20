@@ -53,8 +53,11 @@ your poems change, adds the `poet` command to `~/.local/bin`, and adds a menu
 entry (with a *New poem* action). `poetautopublish uninstall` removes all of it.
 
 **⚙ Settings** in the menu reopens the same screens with your answers filled in.
-The answers are saved in `~/.config/poetautopublish/config.toml` and
-`authors.toml`. See [config.example.toml](config.example.toml) for every option.
+Who you are, your pen names, the other authors and your week names are saved
+in a `.poet/` folder inside the poems folder, so they travel with the poems to
+another computer or a phone. Folders and other machine settings stay in
+`~/.config/poetautopublish/config.toml`; see
+[config.example.toml](config.example.toml) for every option.
 
 ## Poem files
 
@@ -83,7 +86,7 @@ a blank line starts a new stanza.
   your pen names are published, and the page then shows the pen name. Poems
   signed by other authors are tracked there but never published. Signatures
   that belong to no one yet show up there too, and ⏎ assigns them to an author.
-  The table is kept in `~/.config/poetautopublish/authors.toml`.
+  The table is kept in `.poet/authors.toml` in the poems folder.
 - **No date known?** A signature without a date also counts, as long as it
   starts with a known name or pen name: `- K.M Ozan Deniz. Mürekkep #2`. Such
   poems go into collections and the publications tree, but not into a weekly
@@ -130,7 +133,7 @@ that collection. **◆ Contra Noir** under *Other spaces* takes you back to the 
 
 A week is named after its earliest poem ("5 Ekim Haftası" / "Week of 5
 October") unless you rename it with `r` in the interface. Custom names are kept
-in `~/.config/poetautopublish/weeks.toml`. They change the cover, the contents
+in `.poet/weeks.toml` in the poems folder. They change the cover, the contents
 and the PDF title, but not the file name.
 
 For each week, `<series>_DD_MM_week.pdf` is named after the week's first poem,

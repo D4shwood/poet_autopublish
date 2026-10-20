@@ -3,7 +3,7 @@
 
 use super::app::{App, AuthorStep, Confirm, Mode};
 use super::ui::{ACCENT, BG, FAINT, FG, MUTED, WARN, panel};
-use crate::authors::{Author, norm};
+use crate::authors::{SignatureCounts, count_of, signature_counts};
 use crate::build;
 use ratatui::Frame;
 use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
@@ -11,7 +11,6 @@ use ratatui::layout::Rect;
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::Paragraph;
-use std::collections::BTreeMap;
 
 #[derive(Clone, PartialEq)]
 pub enum Row {
@@ -22,48 +21,33 @@ pub enum Row {
     NewAuthor,
 }
 
-/// Poems per signature (normalised), with the spelling first seen.
-fn counts(app: &App) -> BTreeMap<String, (String, usize)> {
-    let mut out: BTreeMap<String, (String, usize)> = BTreeMap::new();
-    for p in app.lib.scan.all_poems() {
-        if let Some(sig) = &p.signature {
-            let e = out
-                .entry(norm(&sig.author))
-                .or_insert_with(|| (sig.author.clone(), 0));
-            e.1 += 1;
-        }
-    }
-    out
-}
-
-fn count_of(counts: &BTreeMap<String, (String, usize)>, name: &str) -> usize {
-    counts.get(&norm(name)).map(|(_, n)| *n).unwrap_or(0)
+fn counts(app: &App) -> SignatureCounts {
+    signature_counts(app.lib.scan.all_poems())
 }
 
 /// The main author first, then the others, then unclaimed signatures.
 pub fn rows(app: &App) -> Vec<Row> {
     let authors = &app.lib.authors;
-    let mut order: Vec<usize> = vec![authors.main];
-    order.extend((0..authors.list.len()).filter(|i| *i != authors.main));
     let mut rows = vec![];
-    for i in order {
+    for i in authors.order() {
         rows.push(Row::Author(i));
         for j in 0..authors.list[i].pen_names.len() {
             rows.push(Row::Pen(i, j));
         }
     }
-    for (_, (shown, _)) in counts(app) {
-        if authors.find(&shown).is_none() {
-            rows.push(Row::Unknown(shown));
-        }
-    }
+    rows.extend(
+        authors
+            .unclaimed(&counts(app))
+            .into_iter()
+            .map(Row::Unknown),
+    );
     rows.push(Row::NewAuthor);
     rows
 }
 
 /// Saves the table and rebuilds: who counts as "you" decides what is published.
 fn commit(app: &mut App, what: String) {
-    match app.lib.authors.save() {
+    match app.lib.authors.save(&app.cfg.poems_dir()) {
         Ok(()) => {
             build::log(&what);
             app.refresh();
@@ -135,8 +119,9 @@ pub fn key(app: &mut App, sel: usize, k: KeyEvent) -> Mode {
         },
         KeyCode::Char('x') => match rows[sel] {
             Row::Pen(i, j) => {
-                let pen = app.lib.authors.list[i].pen_names.remove(j);
-                commit(app, format!("removed pen name: {pen}"));
+                if let Some(pen) = app.lib.authors.remove_pen_name(i, j) {
+                    commit(app, format!("removed pen name: {pen}"));
+                }
                 Mode::Signatures { sel }
             }
             Row::Author(i) if i != app.lib.authors.main => Mode::Confirm(Confirm::RemoveAuthor(i)),
@@ -147,11 +132,7 @@ pub fn key(app: &mut App, sel: usize, k: KeyEvent) -> Mode {
 }
 
 pub fn remove_author(app: &mut App, i: usize) {
-    if i != app.lib.authors.main && i < app.lib.authors.list.len() {
-        let gone = app.lib.authors.list.remove(i);
-        if i < app.lib.authors.main {
-            app.lib.authors.main -= 1;
-        }
+    if let Some(gone) = app.lib.authors.remove_author(i) {
         commit(app, format!("removed author: {}", gone.label()));
     }
 }
@@ -179,17 +160,11 @@ pub fn key_prompt(
                 if name.is_empty() && pen.is_empty() {
                     return Mode::Signatures { sel: back };
                 }
-                let taken = |s: &str| !s.is_empty() && app.lib.authors.find(s).is_some();
-                if taken(&name) || taken(&pen) {
+                if !app.lib.authors.add_author(&name, &pen) {
                     app.say(app.t("name_taken"));
                     return Mode::Signatures { sel: back };
                 }
-                let author = Author {
-                    name,
-                    pen_names: if pen.is_empty() { vec![] } else { vec![pen] },
-                };
-                let label = author.label();
-                app.lib.authors.list.push(author);
+                let label = app.lib.authors.list.last().unwrap().label();
                 commit(app, format!("new author: {label}"));
                 Mode::Signatures { sel: back }
             }

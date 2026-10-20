@@ -1,12 +1,14 @@
-//! Authors and their pen names, kept in ~/.config/poetautopublish/authors.toml.
+//! Authors and their pen names, kept in `<poems folder>/.poet/authors.toml`.
 //!
 //! The main author (the config's `author`) publishes under their name or any of
 //! their pen names. Poems signed by other authors are tracked but never published.
 
-use crate::config::config_dir;
+use crate::poem::Poem;
+use crate::shared;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use std::fs;
+use std::collections::BTreeMap;
+use std::path::Path;
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct Author {
@@ -32,12 +34,6 @@ impl Author {
         (!self.name.trim().is_empty() && norm(&self.name) == s)
             || self.pen_names.iter().any(|p| norm(p) == s)
     }
-}
-
-#[derive(Default, Serialize, Deserialize)]
-struct File {
-    #[serde(default, rename = "author")]
-    authors: Vec<Author>,
 }
 
 #[derive(Debug, Clone)]
@@ -80,24 +76,12 @@ impl Authors {
         Authors { list, main }
     }
 
-    pub fn load(main_name: &str) -> Authors {
-        let file: File = fs::read_to_string(config_dir().join("authors.toml"))
-            .ok()
-            .and_then(|t| toml::from_str(&t).ok())
-            .unwrap_or_default();
-        Authors::new(file.authors, main_name)
+    pub fn load(poems_dir: &Path, main_name: &str) -> Authors {
+        Authors::new(shared::load_authors(poems_dir), main_name)
     }
 
-    pub fn save(&self) -> Result<()> {
-        fs::create_dir_all(config_dir())?;
-        let file = File {
-            authors: self.list.clone(),
-        };
-        fs::write(
-            config_dir().join("authors.toml"),
-            toml::to_string_pretty(&file)?,
-        )?;
-        Ok(())
+    pub fn save(&self, poems_dir: &Path) -> Result<()> {
+        shared::save_authors(poems_dir, &self.list)
     }
 
     /// Which author a signature belongs to.
@@ -123,6 +107,77 @@ impl Authors {
         self.list[author].pen_names.push(pen.to_string());
         true
     }
+
+    pub fn remove_pen_name(&mut self, author: usize, pen: usize) -> Option<String> {
+        let pens = &mut self.list.get_mut(author)?.pen_names;
+        (pen < pens.len()).then(|| pens.remove(pen))
+    }
+
+    /// Adds another author with a real name, a first pen name, or both.
+    /// Fails when both are empty or either is already someone's signature.
+    pub fn add_author(&mut self, name: &str, pen: &str) -> bool {
+        let (name, pen) = (name.trim(), pen.trim());
+        let taken = |s: &str| !s.is_empty() && self.find(s).is_some();
+        if (name.is_empty() && pen.is_empty()) || taken(name) || taken(pen) {
+            return false;
+        }
+        self.list.push(Author {
+            name: name.to_string(),
+            pen_names: if pen.is_empty() {
+                vec![]
+            } else {
+                vec![pen.to_string()]
+            },
+        });
+        true
+    }
+
+    /// Removes another author; the main author stays.
+    pub fn remove_author(&mut self, i: usize) -> Option<Author> {
+        if i == self.main || i >= self.list.len() {
+            return None;
+        }
+        if i < self.main {
+            self.main -= 1;
+        }
+        Some(self.list.remove(i))
+    }
+
+    /// Author indexes, the main author first.
+    pub fn order(&self) -> Vec<usize> {
+        let mut order = vec![self.main];
+        order.extend((0..self.list.len()).filter(|i| *i != self.main));
+        order
+    }
+
+    /// Signatures no author claims, in the spelling first seen.
+    pub fn unclaimed(&self, counts: &SignatureCounts) -> Vec<String> {
+        counts
+            .values()
+            .filter(|(shown, _)| self.find(shown).is_none())
+            .map(|(shown, _)| shown.clone())
+            .collect()
+    }
+}
+
+/// Poems per signature, keyed by the normalised name, with the spelling first seen.
+pub type SignatureCounts = BTreeMap<String, (String, usize)>;
+
+pub fn signature_counts<'a>(poems: impl IntoIterator<Item = &'a Poem>) -> SignatureCounts {
+    let mut out = SignatureCounts::new();
+    for p in poems {
+        if let Some(sig) = &p.signature {
+            let e = out
+                .entry(norm(&sig.author))
+                .or_insert_with(|| (sig.author.clone(), 0));
+            e.1 += 1;
+        }
+    }
+    out
+}
+
+pub fn count_of(counts: &SignatureCounts, name: &str) -> usize {
+    counts.get(&norm(name)).map(|(_, n)| *n).unwrap_or(0)
 }
 
 #[cfg(test)]
@@ -143,6 +198,19 @@ mod tests {
             ],
             "Deniz Yalın",
         )
+    }
+
+    #[test]
+    fn editing() {
+        let mut a = table();
+        assert!(!a.add_author("", ""));
+        assert!(!a.add_author("Yeni", "k.m. ozan"), "pen name already taken");
+        assert!(a.add_author("Ece Tan", ""));
+        assert_eq!(a.remove_author(a.main), None, "the main author stays");
+        assert_eq!(a.remove_pen_name(1, 0).as_deref(), Some("Gölge"));
+        assert_eq!(a.remove_author(1).unwrap().pen_names, vec!["B."]);
+        assert_eq!(a.list[a.main].name, "Deniz Yalın");
+        assert_eq!(a.order(), vec![0, 1]);
     }
 
     #[test]

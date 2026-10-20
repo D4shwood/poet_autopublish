@@ -1,8 +1,9 @@
 //! The distraction-free writing screen.
 
+use crate::compose;
 use crate::config::Config;
 use crate::history;
-use crate::poem::{DRAFT_TAGS, Poem, Signature};
+use crate::poem::Poem;
 use anyhow::Result;
 use chrono::{DateTime, Local};
 use std::fs;
@@ -63,22 +64,7 @@ impl Editor {
 
     /// Opens an existing poem. The draft tag is hidden while editing and written back on save.
     pub fn open(path: &Path) -> Result<Editor> {
-        let raw = fs::read_to_string(path)?.replace("\r\n", "\n");
-        let mut lines: Vec<String> = raw.lines().map(str::to_string).collect();
-        let mut is_draft = false;
-        if let Some(i) = lines
-            .iter()
-            .skip(1)
-            .position(|l| !l.trim().is_empty())
-            .map(|i| i + 1)
-            && DRAFT_TAGS.contains(&lines[i].trim().to_lowercase().as_str())
-        {
-            is_draft = true;
-            lines.remove(i);
-        }
-        if lines.is_empty() {
-            lines.push(String::new());
-        }
+        let compose::Draft { lines, is_draft } = compose::open(&fs::read_to_string(path)?);
         let mut e = Editor::new(None);
         e.row = lines.len() - 1;
         e.col = lines[e.row].chars().count();
@@ -89,34 +75,23 @@ impl Editor {
     }
 
     pub fn title(&self) -> &str {
-        self.lines.first().map(|l| l.trim()).unwrap_or("")
+        compose::title(&self.lines)
     }
 
     pub fn is_empty(&self) -> bool {
-        self.lines.iter().all(|l| l.trim().is_empty())
+        compose::is_empty(&self.lines)
     }
 
     pub fn is_signed(&self) -> bool {
-        self.lines
-            .iter()
-            .rposition(|l| !l.trim().is_empty())
-            .is_some_and(|i| i > 0 && Signature::parse(&self.lines[i]).is_some())
+        compose::is_signed(&self.lines)
     }
 
     pub fn word_count(&self) -> usize {
-        self.lines
-            .iter()
-            .skip(1)
-            .map(|l| l.split_whitespace().count())
-            .sum()
+        compose::word_count(&self.lines)
     }
 
     pub fn line_count(&self) -> usize {
-        self.lines
-            .iter()
-            .skip(1)
-            .filter(|l| !l.trim().is_empty())
-            .count()
+        compose::line_count(&self.lines)
     }
 
     fn push_undo(&mut self) {
@@ -266,16 +241,7 @@ impl Editor {
 
     /// The file text: the draft tag goes right after the title.
     pub fn content(&self) -> String {
-        let mut lines = self.lines.clone();
-        while lines.last().is_some_and(|l| l.trim().is_empty()) {
-            lines.pop();
-        }
-        if self.is_draft {
-            lines.insert(1.min(lines.len()), "#taslak".into());
-        }
-        let mut s = lines.join("\n");
-        s.push('\n');
-        s
+        compose::content(&self.lines, self.is_draft)
     }
 
     /// Saves the poem. A draft's file follows its title; once signed the name stays fixed.
@@ -334,12 +300,7 @@ impl Editor {
     /// Removes the draft tag and appends the signature with the current time.
     pub fn sign(&mut self, cfg: &Config) -> Result<()> {
         self.push_undo();
-        while self.lines.last().is_some_and(|l| l.trim().is_empty()) {
-            self.lines.pop();
-        }
-        self.lines.push(String::new());
-        self.lines
-            .push(Signature::format(&cfg.author, Local::now().naive_local()));
+        compose::sign(&mut self.lines, &cfg.author, Local::now().naive_local());
         self.is_draft = false;
         self.row = self.lines.len() - 1;
         self.col = self.line_len(self.row);
@@ -415,49 +376,21 @@ fn history_key(cfg: &Config, path: &Path) -> String {
         })
 }
 
-/// A file name from a title: `/` replaced, Turkish letters kept.
-pub fn sanitize(title: &str) -> String {
-    let s: String = title
-        .trim()
-        .chars()
-        .map(|c| {
-            if c == '/' || c == '\\' || c.is_control() {
-                '-'
-            } else {
-                c
-            }
-        })
-        .collect();
-    let s = s.trim_start_matches(['.', '_']).trim().to_string();
-    if s.is_empty() {
-        "Adsız".into()
-    } else {
-        s.chars().take(80).collect()
-    }
-}
+pub use crate::compose::sanitize;
 
 fn unique(dir: &Path, name: &str, current: Option<&PathBuf>) -> PathBuf {
-    let mut candidate = dir.join(name);
-    let mut n = 2;
-    while candidate.exists() && Some(&candidate) != current {
-        candidate = dir.join(format!("{name} ({n})"));
-        n += 1;
-    }
-    candidate
+    dir.join(compose::unique_name(name, |n| {
+        let p = dir.join(n);
+        p.exists() && Some(&p) != current
+    }))
 }
 
 /// A random line from the user's own poems, for the blank page.
 pub fn inspiration(poems: &[Poem]) -> Option<String> {
     use rand::seq::IndexedRandom;
-    let lines: Vec<&String> = poems
-        .iter()
-        .flat_map(|p| p.body.iter())
-        .filter(|l| {
-            let n = l.trim().chars().count();
-            (12..=80).contains(&n)
-        })
-        .collect();
-    lines.choose(&mut rand::rng()).map(|l| l.trim().to_string())
+    compose::inspiration_lines(poems)
+        .choose(&mut rand::rng())
+        .cloned()
 }
 
 #[cfg(test)]
