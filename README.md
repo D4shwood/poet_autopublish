@@ -70,6 +70,10 @@ a blank line starts a new stanza.
   signed by other authors are tracked there but never published. Signatures
   that belong to no one yet show up there too, and ⏎ assigns them to an author.
   The table is kept in `~/.config/poetautopublish/authors.toml`.
+- **No date known?** A signature without a date also counts, as long as it
+  starts with a known name or pen name: `- K.M Ozan Deniz. Mürekkep #2`. Such
+  poems go into collections and the publications tree, but not into a weekly
+  volume, since no week can hold them.
 - **Where it was published:** anything after the date and time on the signature
   line is the publication, e.g. `- K.M Ozan. 31.10.2024 Mürekkep #0`. It is
   printed under the date: *first published in Mürekkep #0*. Write the issue

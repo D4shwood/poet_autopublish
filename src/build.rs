@@ -79,6 +79,8 @@ pub struct Report {
     pub unsigned: Vec<String>,
     pub drafts: Vec<String>,
     pub foreign: Vec<(String, String)>,
+    /// Series poems signed without a date: no week can hold them.
+    pub undated: Vec<String>,
     pub errors: Vec<String>,
 }
 
@@ -96,6 +98,12 @@ impl Report {
         }
         if !self.unsigned.is_empty() {
             out.push(format!("unsigned, skipped: {}", self.unsigned.join(", ")));
+        }
+        if !self.undated.is_empty() {
+            out.push(format!(
+                "undated, not in any week: {}",
+                self.undated.join(", ")
+            ));
         }
         for (p, a) in &self.foreign {
             out.push(format!("signed by {a}, skipped: {p}"));
@@ -171,9 +179,10 @@ pub struct Library {
 }
 
 pub fn library(cfg: &Config, poems_dir: &Path) -> Result<Library> {
-    let scan = poem::scan(poems_dir)?;
+    let mut scan = poem::scan(poems_dir)?;
     let lang = lang::resolve(&cfg.lang, &scan.poems);
     let authors = Authors::load(&cfg.author);
+    scan.sign_undated(&authors);
     let mut weeks = volume::group(
         &scan.poems,
         &scan.epigraphs,
@@ -217,6 +226,13 @@ pub fn build(cfg: &Config, poems_dir: Option<&Path>, force: bool) -> Result<Repo
             Status::Published => {}
         }
     }
+    for p in &lib.scan.poems {
+        if p.signature.as_ref().is_some_and(|s| s.date.is_none())
+            && p.status(&lib.authors) == Status::Published
+        {
+            report.undated.push(p.file_name.clone());
+        }
+    }
 
     // Revision tracking for published poems.
     let mut state = State::load(&out_dir);
@@ -244,7 +260,7 @@ pub fn build(cfg: &Config, poems_dir: Option<&Path>, force: bool) -> Result<Repo
             entry.last_body = body;
             if entry.last_body == entry.first_body {
                 entry.revised = None;
-            } else if today > sig_date + Duration::days(1) {
+            } else if sig_date.is_none_or(|d| today > d + Duration::days(1)) {
                 entry.revised = Some(today);
             }
         }

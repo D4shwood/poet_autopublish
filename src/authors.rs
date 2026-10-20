@@ -50,7 +50,11 @@ pub struct Authors {
 /// Names compare ignoring case, spacing and dots: "K.M. Ozan" = "k.m ozan",
 /// "Ece T." = "Ece T".
 pub fn norm(s: &str) -> String {
+    // Circumflexes are spelling variants too: "Âli" = "Ali".
     s.replace('.', " ")
+        .replace(['â', 'Â'], "a")
+        .replace(['î', 'Î'], "i")
+        .replace(['û', 'Û'], "u")
         .split_whitespace()
         .collect::<Vec<_>>()
         .join(" ")
@@ -148,6 +152,7 @@ mod tests {
         assert!(a.is_main("K.M ozan"));
         assert!(a.is_main("K.M. Ozan"));
         assert_eq!(norm("Ece T."), norm("Ece T"));
+        assert_eq!(norm("Âdem Nur"), norm("Adem Nur"));
         assert_eq!(a.find("Gölge"), Some(1));
         assert!(!a.is_main("Gölge"));
         assert_eq!(a.find("Biri"), None);

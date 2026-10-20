@@ -29,8 +29,8 @@ pub fn per_week(weeks: &[Week], lang: Lang) -> Vec<(String, u64)> {
 pub fn per_year(poems: &[&Poem]) -> Vec<(String, u64)> {
     let mut years: BTreeMap<i32, u64> = BTreeMap::new();
     for p in poems {
-        if let Some(sig) = &p.signature {
-            *years.entry(sig.date.year()).or_default() += 1;
+        if let Some(date) = p.signature.as_ref().and_then(|s| s.date) {
+            *years.entry(date.year()).or_default() += 1;
         }
     }
     years.into_iter().map(|(y, n)| (y.to_string(), n)).collect()
@@ -43,8 +43,10 @@ pub fn compute(poems: &[&Poem], per_group: Vec<(String, u64)>, today: NaiveDate)
     for p in poems {
         let Some(sig) = &p.signature else { continue };
         // An approximate day can't count toward a streak.
-        if !sig.approx {
-            days.insert(sig.date);
+        if !sig.approx
+            && let Some(date) = sig.date
+        {
+            days.insert(date);
         }
         if let Some(t) = sig.time {
             by_hour[t.hour() as usize] += 1;

@@ -413,8 +413,12 @@ fn draw_poem_list(f: &mut Frame, area: Rect, app: &App) {
         .map(|(i, p)| {
             let selected = focused && i == app.right;
             let when = match &p.signature {
+                Some(s) if s.date.is_none() => String::new(),
                 Some(s) => {
-                    let mut w = s.date.format("%d.%m").to_string();
+                    let mut w = s
+                        .date
+                        .map(|d| d.format("%d.%m").to_string())
+                        .unwrap_or_default();
                     if s.approx {
                         w.insert(0, '~');
                     }
@@ -504,7 +508,10 @@ fn draw_publications(f: &mut Frame, area: Rect, app: &App) {
         } else {
             Style::default().fg(FG)
         };
-        let mut when = sig.date.format("%d.%m.%Y").to_string();
+        let mut when = sig
+            .date
+            .map(|d| d.format("%d.%m.%Y").to_string())
+            .unwrap_or_default();
         if sig.approx {
             when.insert(0, '~');
         }

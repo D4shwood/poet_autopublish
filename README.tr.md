@@ -74,6 +74,10 @@ boş satır yeni bir kıta başlatır.
   takip edilir ama yayımlanmaz. Kimseye ait olmayan imzalar da orada çıkar;
   ⏎ ile bir yazara bağlarsın. Tablo `~/.config/poetautopublish/authors.toml`
   dosyasında tutulur.
+- **Tarih bilinmiyorsa:** tarihsiz bir imza da geçerlidir, yeter ki tanınan bir
+  ad ya da rumuzla başlasın: `- K.M Ozan Deniz. Mürekkep #2`. Böyle şiirler
+  koleksiyonlara ve Yayınlar ağacına girer, haftalık ciltlere giremez, çünkü
+  hiçbir haftaya ait değildir.
 - **Nerede yayımlandığı:** imza satırında tarihten (ve saatten) sonra yazılan
   her şey yayın bilgisidir, örneğin `- K.M Ozan. 31.10.2024 Mürekkep #0`.
   Tarihin altına *ilk yayın: Mürekkep #0* olarak basılır. Sayıyı `#`'den
