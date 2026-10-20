@@ -10,3 +10,24 @@
   images) or a 1080×1920 story.
 - **Writing reminder.** An optional desktop nudge after a few days without a new poem.
 - **Release binaries.** Attach a prebuilt Linux binary to tagged releases.
+
+## Ports
+
+- **Windows.** The same terminal app on Windows (Windows Terminal / PowerShell).
+  The TUI already uses crossterm, which runs there; the Linux-only parts need
+  Windows counterparts: the systemd background service (a scheduled task or a
+  tray process instead), the `poet` symlink and the KDE menu entry (a Start menu
+  shortcut), `xdg-open` (the default PDF handler), the freedesktop Trash, and a
+  TeX distribution with XeLaTeX (MiKTeX or TeX Live).
+- **Android app.** A mobile app for writing and reading on the phone: the
+  writing screen, drafts and signing, and the published PDFs. The poem parsing,
+  week grouping and authors logic can be shared as a Rust library; compiling
+  PDFs on the phone may not be practical, so it could show the PDFs built on
+  the computer instead.
+
+## Stage 2
+
+- **Syncing between phone and computer.** Poems written on either side end up
+  in the same poems folder, and the PDFs come back to the phone. To be decided:
+  a synced folder (e.g. Syncthing) versus the app's own sync, and how to handle
+  the same poem edited on both sides.
