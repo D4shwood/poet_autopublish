@@ -34,3 +34,34 @@
   in the same poems folder, and the PDFs come back to the phone. To be decided:
   a synced folder (e.g. Syncthing) versus the app's own sync, and how to handle
   the same poem edited on both sides.
+
+## Ideas to explore
+
+Angles that use what only this app knows: when every poem was written, every
+draft, the authors and publications, and the Turkish text itself.
+
+- **Time fingerprint.** Each weekly volume's colophon carries a small clock
+  dial of the hours (and ☾ nights) its poems were written.
+- **Moon at signing.** The moon phase, computed offline, next to the signature
+  time: `☾ dolunay · 23.40`.
+- **This day last year.** The blank page shows what you wrote a year ago today.
+- **Night book.** Every poem written past midnight gathered into its own
+  anthology.
+- **Booklet imposition.** A volume or an issue laid out for A4 double-sided,
+  fold-and-staple printing at home.
+- **Fanzine mode.** An issue built from several authors' poems, a section each,
+  with cover and contents (for issues like Mürekkep #3).
+- **Constraint of the day.** A writing constraint drawn from your own corpus
+  (three words from an old poem, a meter), faint on the blank page.
+- **Reading mode.** Full screen, one stanza at a time, for poetry nights.
+- **Proof of authorship.** OpenTimestamps proof for each signed poem, kept in
+  `.poet/`.
+- **Dead lines.** Every line cut while drafting, gathered in its own space and
+  sometimes offered back on the blank page.
+- **Generative covers.** Each volume's cover pattern drawn from its poems
+  (line lengths, syllables, hours), the same poems always giving the same face.
+- **Image constellations.** Poems linked by shared images; jump between them,
+  and a constellation map at the end of the book.
+- **Chain poem (renga).** Written with friends through the shared repo, each
+  link starting from the last image of the one before, names in the margin.
+- **Image concordance.** An index page of the recurring words across poems.
