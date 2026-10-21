@@ -31,6 +31,8 @@ pub struct Config {
     /// Keep the poems folder (a git repo) in step with its remote, and push
     /// the PDFs to its `pdf` branch.
     pub sync: bool,
+    /// Show syllables and rhymes beside the lines while writing (Ctrl+E).
+    pub prosody: bool,
 }
 
 impl Default for Config {
@@ -46,6 +48,7 @@ impl Default for Config {
             history_keep: 50,
             pdf_viewer: String::new(),
             sync: false,
+            prosody: false,
         }
     }
 }

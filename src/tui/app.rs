@@ -956,6 +956,12 @@ impl App {
                 }
             }
             KeyCode::Char('t') if ctrl && !alt => ed.typewriter = !ed.typewriter,
+            KeyCode::Char('e') if ctrl && !alt => {
+                self.cfg.prosody = !self.cfg.prosody;
+                if let Err(e) = self.cfg.save() {
+                    ed.message = Some(format!("{e:#}"));
+                }
+            }
             KeyCode::Char('z') if ctrl && !alt => ed.undo(),
             // AltGr arrives as Ctrl+Alt on some terminals; treat it as text.
             KeyCode::Char(c) if !ctrl || alt => ed.insert_char(c),
