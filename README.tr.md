@@ -202,10 +202,25 @@ Yazma ekranında:
 - `Ctrl+G` şu anki saatle imzalar ve yayımlar.
 - `Ctrl+T` daktilo modunu açıp kapatır.
 - `Ctrl+Z` geri alır.
+- `Ctrl+E` ölçüyü gösterir (aşağıda).
 - `Esc` kaydedip geri döner.
 
 Her kayıt yerel bir geçmişte saklanır
 (`~/.local/share/poetautopublish/history`, şiir başına son 50 sürüm).
+
+**Hece ölçüsü ve kafiye.** `Ctrl+E` her mısranın yanında hece sayısını ve
+kafiyesini gösterir: `14 a` on dört hece ve *a* kafiye grubu demek; `+r`
+rediftir (birkaç mısrayı bitiren aynı kelime); `⚠` ise mısraların çoğunun
+tuttuğu ölçüyü bozan mısrayı gösterir. Durum satırında o ölçü yazar
+(`hece 7+7 12/14` gibi) ya da şiir serbestse *serbest*. Heceler ünlülerden
+sayılır; ölçünün durakları kelime aralarına denk gelmelidir.
+
+**Geçmiş.** `h` ekranında `↑↓` sürüm seçer, `v` seçili sürümü şimdiki metinle
+karşılaştırır, `←`/`→` her sürümün neyi değiştirdiğini gösterir, `Space`
+şiirin yazılışını sürüm sürüm oynatır: silinen kelimeler üstü çizili,
+eklenenler altı çizili. Ayarlarda `variants = true` olursa toplu kitabın
+sonuna bir *Varyantlar* bölümü eklenir; düzeltilen her şiir ilk tam
+taslağından son hâline gösterilir.
 
 Arka plan servisi çalışmıyorsa, arayüz açık olduğu sürece klasörü kendisi izler.
 
