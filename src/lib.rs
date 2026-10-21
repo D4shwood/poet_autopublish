@@ -7,6 +7,7 @@ pub mod config;
 pub mod history;
 pub mod lang;
 pub mod poem;
+pub mod prosody;
 pub mod search;
 pub mod shared;
 pub mod stats;
