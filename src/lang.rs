@@ -229,6 +229,12 @@ impl Lang {
                 "^S save · ^G sign · ^T typewriter · ^E meter · Esc back",
             ),
             "free_verse" => ("serbest", "free verse"),
+            "now" => ("şimdi", "now"),
+            "version" => ("sürüm", "version"),
+            "history_keys" => (
+                "↑↓ sürüm · v şimdiyle karşılaştır · Space oynat · ←→ adım · Esc geri",
+                "↑↓ version · v compare with now · Space replay · ←→ step · Esc back",
+            ),
             "syllables" => ("hece", "syllables"),
             "confirm_sign" => ("İmzalayıp yayımlansın mı? (e/h)", "Sign and publish? (y/n)"),
             "confirm_force" => (
