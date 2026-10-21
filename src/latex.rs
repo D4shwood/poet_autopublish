@@ -1,7 +1,8 @@
 use crate::lang::Lang;
 use crate::poem::Poem;
+use crate::variants::{LineDiff, Seg};
 use crate::volume::{Collection, Week};
-use chrono::NaiveDate;
+use chrono::{NaiveDate, NaiveDateTime};
 use std::collections::{BTreeSet, HashMap};
 
 #[derive(Clone, Copy)]
@@ -246,7 +247,121 @@ pub fn week_doc(w: &Week, ctx: &Ctx) -> String {
 }
 
 /// The cumulative book: newest week first, with a table of contents.
-pub fn book_doc(weeks: &[Week], ctx: &Ctx) -> String {
+/// One poem's path from its first draft, for the book's variants chapter.
+pub struct Variant<'a> {
+    pub poem: &'a Poem,
+    /// When the first draft was saved.
+    pub first: Option<NaiveDateTime>,
+    /// How many different versions there were.
+    pub versions: usize,
+    pub diff: Vec<LineDiff>,
+}
+
+/// Struck-out and underlined text without extra packages, defined here so a
+/// user's own template needs nothing new.
+const VARIANT_MACROS: &str = "\\makeatletter
+\\newlength{\\poet@varlen}
+\\providecommand{\\gone}[1]{{\\color{muted}\\settowidth{\\poet@varlen}{#1}\\rlap{\\rule[0.5ex]{\\poet@varlen}{0.5pt}}#1}}
+\\providecommand{\\added}[1]{{\\settowidth{\\poet@varlen}{#1}\\rlap{\\rule[-0.45ex]{\\poet@varlen}{0.4pt}}#1}}
+\\makeatother
+";
+
+/// A run of text in a macro, its outer spaces kept outside so TeX keeps them.
+fn marked(cmd: &str, t: &str) -> String {
+    let core = t.trim();
+    if core.is_empty() {
+        return if t.is_empty() {
+            String::new()
+        } else {
+            " ".into()
+        };
+    }
+    let lead = if t.starts_with(char::is_whitespace) {
+        " "
+    } else {
+        ""
+    };
+    let trail = if t.ends_with(char::is_whitespace) {
+        " "
+    } else {
+        ""
+    };
+    format!("{lead}\\{cmd}{{{}}}{trail}", escape(core))
+}
+
+fn variant_line(line: &LineDiff) -> String {
+    line.iter()
+        .enumerate()
+        .map(|(i, s)| {
+            // The comparison isn't about indentation: lines start flush.
+            let lstrip = |t: &str| {
+                if i == 0 {
+                    t.trim_start().to_string()
+                } else {
+                    t.to_string()
+                }
+            };
+            match s {
+                Seg::Same(t) => escape(&lstrip(t)),
+                Seg::Gone(t) => marked("gone", &lstrip(t)),
+                Seg::New(t) => marked("added", &lstrip(t)),
+            }
+        })
+        .collect()
+}
+
+/// "Varyantlar": each poem from its first draft to its final form, removed
+/// words struck out and new ones underlined.
+pub fn variants_chapter(variants: &[Variant], ctx: &Ctx) -> String {
+    if variants.is_empty() {
+        return String::new();
+    }
+    let mut out = String::from(VARIANT_MACROS);
+    out.push_str(&format!(
+        "\\newpage\n\\addcontentsline{{toc}}{{section}}{{{}}}\n",
+        ctx.lang.t("variants")
+    ));
+    for v in variants {
+        out.push_str("\\newpage\n");
+        out.push_str(&format!(
+            "\\addcontentsline{{toc}}{{subsection}}{{{}}}\n",
+            escape(&v.poem.title)
+        ));
+        out.push_str(&format!("\\poemtitle{{{}}}\n", escape(&v.poem.title)));
+        // The title line itself is the heading; the rest are the poem's lines.
+        let mut started = false;
+        for line in v.diff.iter().skip(1) {
+            let text: String = line
+                .iter()
+                .map(|s| match s {
+                    Seg::Same(t) | Seg::Gone(t) | Seg::New(t) => t.as_str(),
+                })
+                .collect();
+            if text.trim().is_empty() {
+                if started {
+                    out.push_str("\\stanza{1}\n");
+                }
+                continue;
+            }
+            started = true;
+            out.push_str(&format!("\\pl{{0em}}{{{}}}\n", variant_line(line)));
+        }
+        let first = v
+            .first
+            .map(|t| format!("{} {}", ctx.lang.date_long(t.date()), t.format("%H.%M")))
+            .unwrap_or_default();
+        out.push_str(&format!(
+            "\\poemfooter{{{} {} · {} {}}}\n",
+            ctx.lang.t("first_draft"),
+            escape(&first),
+            v.versions,
+            ctx.lang.t("version")
+        ));
+    }
+    out
+}
+
+pub fn book_doc(weeks: &[Week], variants: &[Variant], ctx: &Ctx) -> String {
     let total: usize = weeks.iter().map(|w| w.poems.len()).sum();
     let mut body = format!(
         "\\cover{{{}}}{{{}}}{{{}}}{{{}}}{{}}\n",
@@ -268,6 +383,7 @@ pub fn book_doc(weeks: &[Week], ctx: &Ctx) -> String {
             body.push_str(&poem_page(p, ctx, true));
         }
     }
+    body.push_str(&variants_chapter(variants, ctx));
     let date = compiled_date(weeks.iter().flat_map(|w| w.poems.iter()), ctx);
     body.push_str(&colophon(ctx.lang.t("all_poems"), date, ctx));
     let title = format!("{} — {}", ctx.series, ctx.lang.t("all_poems"));
@@ -320,6 +436,18 @@ mod tests {
         assert_eq!(indent_levels(&body), vec![0, 1, 2, 0]);
         let body = v(&["a", "    b", "        c", "\tt"]);
         assert_eq!(indent_levels(&body), vec![0, 1, 2, 1]);
+    }
+
+    #[test]
+    fn variant_lines() {
+        let d = crate::variants::diff(
+            "Liman\n\nkıyıda bekleyen martılar\n",
+            "Liman\n\nkıyıda susan martılar & %\n",
+        );
+        assert_eq!(
+            variant_line(&d[2]),
+            "kıyıda \\gone{bekleyen}\\added{susan} martılar \\added{\\& \\%}"
+        );
     }
 
     #[test]

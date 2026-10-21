@@ -3,6 +3,7 @@
 
 use crate::compose;
 use crate::history;
+use crate::poem::Signature;
 use chrono::NaiveDateTime;
 use std::fs;
 
@@ -162,11 +163,51 @@ pub fn versions(file_name: &str, current: &str) -> Vec<(Option<NaiveDateTime>, S
     out
 }
 
-/// The path from the first draft to the current text, if it ever changed.
-pub fn journey(file_name: &str, current: &str) -> Option<Vec<LineDiff>> {
-    let v = versions(file_name, current);
-    let first = &v.first()?.1;
-    (v.len() >= 2).then(|| diff(first, current))
+/// A poem's revision: from its first full draft to its final form.
+pub struct Journey {
+    /// When that draft was saved.
+    pub first: Option<NaiveDateTime>,
+    /// How many different versions there were in all.
+    pub versions: usize,
+    pub diff: Vec<LineDiff>,
+}
+
+/// The text without its signature: signing isn't a revision.
+fn unsigned(text: &str) -> String {
+    let mut l: Vec<String> = lines(text)
+        .into_iter()
+        .filter(|l| Signature::parse(l).is_none())
+        .collect();
+    while l.last().is_some_and(|x| x.trim().is_empty()) {
+        l.pop();
+    }
+    l.join("\n")
+}
+
+fn verse_lines(text: &str) -> usize {
+    text.lines()
+        .skip(1)
+        .filter(|l| !l.trim().is_empty())
+        .count()
+}
+
+/// How the poem was revised, from the first version that already held at
+/// least half its final lines (earlier ones show it being written, not
+/// revised). None if the words never changed after that.
+pub fn journey(file_name: &str, current: &str) -> Option<Journey> {
+    let all = versions(file_name, current);
+    let last = unsigned(current);
+    let target = verse_lines(&last);
+    let (first, base) = all
+        .iter()
+        .map(|(at, t)| (*at, unsigned(t)))
+        .find(|(_, t)| verse_lines(t) * 2 >= target)?;
+    let d = diff(&base, &last);
+    changed(&d).then_some(Journey {
+        first,
+        versions: all.len(),
+        diff: d,
+    })
 }
 
 #[cfg(test)]
@@ -225,5 +266,14 @@ mod tests {
             ]
         );
         assert!(!changed(&diff(draft, "Liman\n\nbir mısra\n")));
+    }
+
+    #[test]
+    fn signing_alone_is_no_revision() {
+        assert_eq!(
+            unsigned("Liman\n\nbir mısra\n\n- Deniz Yalın. 05.10.2026 - 21.30\n"),
+            "Liman\n\nbir mısra"
+        );
+        assert_eq!(verse_lines("Liman\n\nbir\n\niki"), 2);
     }
 }

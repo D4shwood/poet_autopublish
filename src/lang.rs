@@ -230,6 +230,8 @@ impl Lang {
             ),
             "free_verse" => ("serbest", "free verse"),
             "now" => ("şimdi", "now"),
+            "variants" => ("Varyantlar", "Variants"),
+            "first_draft" => ("ilk tam taslak", "first full draft"),
             "version" => ("sürüm", "version"),
             "history_keys" => (
                 "↑↓ sürüm · v şimdiyle karşılaştır · Space oynat · ←→ adım · Esc geri",

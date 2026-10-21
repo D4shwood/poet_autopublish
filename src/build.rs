@@ -289,7 +289,29 @@ pub fn build(cfg: &Config, poems_dir: Option<&Path>, force: bool) -> Result<Repo
         .map(|w| (w.file_name.clone(), latex::week_doc(w, &ctx), 1))
         .collect();
     if !lib.weeks.is_empty() {
-        wanted.push((lib.book.clone(), latex::book_doc(&lib.weeks, &ctx), 2));
+        // With `variants` on, the book ends with each poem's path from its first draft.
+        let variants: Vec<latex::Variant> = if cfg.variants {
+            lib.weeks
+                .iter()
+                .flat_map(|w| w.poems.iter())
+                .filter_map(|p| {
+                    let j = crate::variants::journey(&p.file_name, &p.raw)?;
+                    Some(latex::Variant {
+                        poem: p,
+                        first: j.first,
+                        versions: j.versions,
+                        diff: j.diff,
+                    })
+                })
+                .collect()
+        } else {
+            vec![]
+        };
+        wanted.push((
+            lib.book.clone(),
+            latex::book_doc(&lib.weeks, &variants, &ctx),
+            2,
+        ));
     }
     // A collection gets its book once it has a signed poem.
     for c in lib.collections.iter().filter(|c| !c.poems.is_empty()) {
