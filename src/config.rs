@@ -33,6 +33,8 @@ pub struct Config {
     pub sync: bool,
     /// Show syllables and rhymes beside the lines while writing (Ctrl+E).
     pub prosody: bool,
+    /// End the full book with each poem's path from its first draft.
+    pub variants: bool,
 }
 
 impl Default for Config {
@@ -49,6 +51,7 @@ impl Default for Config {
             pdf_viewer: String::new(),
             sync: false,
             prosody: false,
+            variants: false,
         }
     }
 }
