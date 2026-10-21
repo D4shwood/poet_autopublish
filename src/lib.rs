@@ -11,4 +11,5 @@ pub mod prosody;
 pub mod search;
 pub mod shared;
 pub mod stats;
+pub mod variants;
 pub mod volume;
