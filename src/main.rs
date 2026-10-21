@@ -1,5 +1,5 @@
 pub use poetautopublish::{
-    authors, compose, config, history, lang, poem, prosody, search, shared, stats, volume,
+    authors, compose, config, history, lang, poem, prosody, search, shared, stats, variants, volume,
 };
 
 mod build;
