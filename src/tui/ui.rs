@@ -5,7 +5,8 @@ use super::writer::Editor;
 #[cfg(feature = "preview")]
 use super::writer::wrap;
 use crate::authors::norm;
-use crate::poem::Status;
+use crate::poem::{Signature, Status};
+use crate::prosody;
 use crate::stats;
 use chrono::{Datelike, Local};
 use ratatui::Frame;
@@ -47,7 +48,7 @@ pub fn draw(f: &mut Frame, app: &mut App) {
         return;
     }
     if let Mode::Writer(ed) = &mut app.mode {
-        draw_writer(f, area, ed, app.lib.lang);
+        draw_writer(f, area, ed, app.lib.lang, app.cfg.prosody);
         return;
     }
 
@@ -683,7 +684,51 @@ fn draw_stats(f: &mut Frame, area: Rect, app: &App) {
     let _ = Local::now().year();
 }
 
-fn draw_writer(f: &mut Frame, area: Rect, ed: &mut Editor, lang: crate::lang::Lang) {
+/// Cells beside the text for the syllable count and rhyme ("⚠14 a+r").
+const MARGIN: u16 = 8;
+
+/// Syllables and rhymes for the body lines, keyed by line index; the signature
+/// and blank lines get none. Also the meter most lines keep.
+fn verse_marks(
+    ed: &Editor,
+) -> (
+    std::collections::HashMap<usize, (String, bool)>,
+    Option<prosody::Meter>,
+) {
+    let verse: Vec<usize> = (1..ed.lines.len())
+        .filter(|&i| !ed.lines[i].trim().is_empty() && Signature::parse(&ed.lines[i]).is_none())
+        .collect();
+    let texts: Vec<&str> = verse.iter().map(|&i| ed.lines[i].as_str()).collect();
+    let meter = prosody::meter(&texts);
+    let rhymes = prosody::rhymes(&texts);
+    let marks = verse
+        .iter()
+        .enumerate()
+        .map(|(k, &i)| {
+            let n = prosody::line_shape(texts[k]).total;
+            let off = meter.as_ref().is_some_and(|m| !m.fits(texts[k]));
+            let rhyme = rhymes[k]
+                .as_ref()
+                .map(|r| format!("{}{}", r.letter, if r.redif { "+r" } else { "" }))
+                .unwrap_or_default();
+            (
+                i,
+                (
+                    format!("{}{n:>2} {rhyme}", if off { "⚠" } else { " " }),
+                    off,
+                ),
+            )
+        })
+        .collect();
+    (marks, meter)
+}
+
+fn draw_writer(f: &mut Frame, area: Rect, ed: &mut Editor, lang: crate::lang::Lang, prosody: bool) {
+    let (marks, meter) = if prosody {
+        verse_marks(ed)
+    } else {
+        Default::default()
+    };
     let mins = ed.started.elapsed().as_secs() / 60;
     let saved = match (&ed.last_saved, ed.dirty) {
         (Some(t), false) => format!("{} {}", lang.t("saved"), t.format("%H.%M")),
@@ -695,7 +740,19 @@ fn draw_writer(f: &mut Frame, area: Rect, ed: &mut Editor, lang: crate::lang::La
     } else {
         lang.t("draft")
     };
-    let tw = if ed.typewriter { " · ⌨" } else { "" };
+    let mut tw = if ed.typewriter { " · ⌨" } else { "" }.to_string();
+    if prosody {
+        tw.push_str(&match &meter {
+            Some(m) => format!(
+                " · {} {} {}/{}",
+                lang.t("syllables"),
+                m.label(),
+                m.fits,
+                m.of
+            ),
+            None => format!(" · {}", lang.t("free_verse")),
+        });
+    }
     let msg = if ed.confirm_sign {
         lang.t("confirm_sign").to_string()
     } else {
@@ -733,7 +790,9 @@ fn draw_writer(f: &mut Frame, area: Rect, ed: &mut Editor, lang: crate::lang::La
     };
     let [page, status] =
         Layout::vertical([Constraint::Min(3), Constraint::Length(status_h as u16)]).areas(area);
-    let width = (page.width.saturating_sub(8) as usize).min(76);
+    // With the meter on, the text leaves room on its right for the marks.
+    let room = if prosody { 2 * (MARGIN + 1) } else { 0 };
+    let width = (page.width.saturating_sub(8 + room) as usize).min(76);
     let left_x = page.x + (page.width.saturating_sub(width as u16)) / 2;
     let text_area = Rect {
         x: left_x,
@@ -803,6 +862,33 @@ fn draw_writer(f: &mut Frame, area: Rect, ed: &mut Editor, lang: crate::lang::La
                 Paragraph::new(Span::styled("↪", Style::default().fg(FAINT))),
                 r,
             );
+        }
+    }
+
+    // The syllable count and rhyme beside each line's first row.
+    if prosody {
+        for (i, (li, _, _, cont)) in rows
+            .iter()
+            .skip(first)
+            .take(h.saturating_sub(top_pad))
+            .enumerate()
+        {
+            let Some((mark, off)) = marks.get(li).filter(|_| !*cont) else {
+                continue;
+            };
+            let r = Rect {
+                x: text_area.x + text_area.width + 1,
+                y: text_area.y + (top_pad + i) as u16,
+                width: MARGIN,
+                height: 1,
+            };
+            if r.x + r.width <= page.x + page.width {
+                let color = if *off { WARN } else { FAINT };
+                f.render_widget(
+                    Paragraph::new(Span::styled(mark.clone(), Style::default().fg(color))),
+                    r,
+                );
+            }
         }
     }
 
