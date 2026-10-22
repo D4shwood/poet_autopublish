@@ -60,6 +60,7 @@ object S {
         "w_sign" to ("✎ imzala" to "✎ sign"),
         "w_undo" to ("↶ geri al" to "↶ undo"),
         "w_typewriter" to ("⌨ daktilo" to "⌨ typewriter"),
+        "w_meter" to ("♩ ölçü" to "♩ meter"),
         "w_back" to ("← geri" to "← back"),
         "w_title" to ("Başlık" to "Title"),
 

@@ -44,7 +44,12 @@ import uniffi.poet_core.isSigned
 import uniffi.poet_core.lineCount
 import uniffi.poet_core.openPoem
 import uniffi.poet_core.signPoem
+import uniffi.poet_core.verse
 import uniffi.poet_core.wordCount
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.width
+import androidx.compose.ui.platform.LocalDensity
 
 private const val AUTOSAVE_MS = 30_000L
 private const val UNDO_DEPTH = 200
@@ -61,6 +66,7 @@ fun WriterScreen(ui: Ui, openKey: String?, collection: String?, onBack: () -> Un
     var dirty by remember { mutableStateOf(false) }
     var savedAt by remember { mutableStateOf<String?>(null) }
     var typewriter by remember { mutableStateOf(false) }
+    var meterOn by remember { mutableStateOf(ui.vm.meterOn) }
     var loaded by remember { mutableStateOf(openKey == null) }
     var prompt by remember { mutableStateOf<Prompt?>(null) }
     val started = remember { System.currentTimeMillis() }
@@ -144,6 +150,7 @@ fun WriterScreen(ui: Ui, openKey: String?, collection: String?, onBack: () -> Un
 
     val ls = lines()
     val signed = isSigned(ls)
+    val verseInfo = remember(ls, meterOn) { if (meterOn) verse(ls) else null } ?: uniffi.poet_core.Verse(null, 0u, 0u, emptyList())
     val scroll = rememberScrollState()
     var layout by remember { mutableStateOf<TextLayoutResult?>(null) }
     var viewport by remember { mutableStateOf(0) }
@@ -183,9 +190,11 @@ fun WriterScreen(ui: Ui, openKey: String?, collection: String?, onBack: () -> Un
                     },
                 )
                 Spacer(Modifier.height(18.dp))
+                val density = LocalDensity.current
+                Row {
                 BasicTextField(
                     body, { edited(title, it) },
-                    Modifier.fillMaxWidth().focusRequester(bodyFocus),
+                    Modifier.weight(1f).focusRequester(bodyFocus),
                     textStyle = Cell.copy(color = T.FG),
                     cursorBrush = SolidColor(T.ACCENT),
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
@@ -199,6 +208,26 @@ fun WriterScreen(ui: Ui, openKey: String?, collection: String?, onBack: () -> Un
                         }
                     },
                 )
+                // The meter view: each line's syllables and rhyme on its right, as the
+                // terminal's Ctrl+E. Lines 0 and 1 are the title and the gap after it.
+                val l = layout
+                if (meterOn && l != null) {
+                    Box(Modifier.width(cell * 7)) {
+                        val starts = body.text.split("\n").runningFold(0) { at, line -> at + line.length + 1 }
+                        for (m in verseInfo.marks) {
+                            val k = m.line.toInt() - 2
+                            val offset = starts.getOrNull(k)?.coerceAtMost(body.text.length) ?: continue
+                            val top = l.getLineTop(l.getLineForOffset(offset))
+                            Txt(
+                                (if (m.off) "⚠" else " ") + m.syllables.toString().padStart(2) + " " + (m.rhyme ?: ""),
+                                Modifier.offset(y = with(density) { top.toDp() }),
+                                color = if (m.off) T.WARN else T.FAINT,
+                                maxLines = 1,
+                            )
+                        }
+                    }
+                }
+                }
                 // Room to scroll the last line up to the middle.
                 Spacer(Modifier.height(if (typewriter) 400.dp else 120.dp))
             }
@@ -212,7 +241,9 @@ fun WriterScreen(ui: Ui, openKey: String?, collection: String?, onBack: () -> Un
         }
         val state = if (signed) ui.t("signed") else ui.t("draft")
         val status = "${lineCount(ls)} ${ui.t("lines")} · ${wordCount(ls)} ${ui.t("words")} · $mins ${ui.t("min")} · " +
-            "${ui.vm.now()} · $saved · $state" + if (typewriter) " · ⌨" else ""
+            "${ui.vm.now()} · $saved · $state" + (if (typewriter) " · ⌨" else "") +
+            if (!meterOn) "" else verseInfo.meter?.let { " · ${ui.t("syllables")} $it ${verseInfo.fits}/${verseInfo.of}" }
+                ?: " · ${ui.t("free_verse")}"
         Txt(" $status", Modifier.padding(top = 2.dp, start = 2.dp, end = 2.dp), color = T.FAINT, maxLines = 2)
         val p = prompt
         when {
@@ -225,6 +256,7 @@ fun WriterScreen(ui: Ui, openKey: String?, collection: String?, onBack: () -> Un
                 add(Key(ui.s("w_save")) { save() })
                 if (!signed) add(Key(ui.s("w_sign")) { sign() })
                 add(Key(ui.s("w_typewriter")) { typewriter = !typewriter })
+                add(Key(ui.s("w_meter")) { meterOn = !meterOn; ui.vm.meterOn = meterOn })
                 add(Key(ui.s("w_back")) { leave() })
             })
         }

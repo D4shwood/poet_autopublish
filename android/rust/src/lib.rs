@@ -9,7 +9,7 @@ use chrono::{Local, NaiveTime};
 use poetautopublish::authors::{self as core_authors, Author, Authors};
 use poetautopublish::lang::{self, Lang};
 use poetautopublish::poem::{Poem, Scan, Signature, Status};
-use poetautopublish::{compose, search, shared, stats, volume};
+use poetautopublish::{compose, prosody, search, shared, stats, volume};
 use std::collections::HashMap;
 use std::path::Path;
 
@@ -47,6 +47,8 @@ pub struct Profile {
     pub lang: String,
     /// "HH:MM".
     pub night_cutoff: String,
+    /// How unnamed weeks are named, e.g. "{week}. Hafta {yy}'"; "" for dates.
+    pub week_format: String,
 }
 
 #[derive(uniffi::Record, Clone)]
@@ -244,9 +246,7 @@ impl PoetCore {
             .as_deref()
             .map(shared::weeks_from_toml)
             .unwrap_or_default();
-        for w in &mut weeks {
-            w.name = names.get(&w.key).cloned();
-        }
+        volume::name_weeks(&mut weeks, &names, &profile.week_format);
         let collections = volume::collections(&scan.collections, &authors);
         std::sync::Arc::new(PoetCore {
             scan,
@@ -271,6 +271,7 @@ impl PoetCore {
             series: self.profile.series.clone(),
             lang: self.profile.lang.clone(),
             night_cutoff: self.profile.night_cutoff.clone(),
+            week_format: self.profile.week_format.clone(),
         }
     }
 
@@ -597,6 +598,57 @@ pub fn file_name_for(title: String, taken: Vec<String>) -> String {
     compose::unique_name(&compose::sanitize(&title), |n| taken.iter().any(|t| t == n))
 }
 
+/// One line's syllables and rhyme, for the writer's margin.
+#[derive(uniffi::Record)]
+pub struct LineMark {
+    /// Index into the lines given (0 is the title).
+    pub line: u32,
+    pub syllables: u32,
+    /// "a", "b+r" (the r marks a redif); None when it rhymes with nothing.
+    pub rhyme: Option<String>,
+    /// The line breaks the meter most lines keep.
+    pub off: bool,
+}
+
+#[derive(uniffi::Record)]
+pub struct Verse {
+    /// "7+7", "11"; None for free verse.
+    pub meter: Option<String>,
+    pub fits: u32,
+    pub of: u32,
+    pub marks: Vec<LineMark>,
+}
+
+/// Syllables, rhymes and the meter of a poem being written. The title, blank
+/// lines and the signature get no mark.
+#[uniffi::export]
+pub fn verse(lines: Vec<String>) -> Verse {
+    let idx: Vec<usize> = (1..lines.len())
+        .filter(|&i| !lines[i].trim().is_empty() && Signature::parse(&lines[i]).is_none())
+        .collect();
+    let texts: Vec<&str> = idx.iter().map(|&i| lines[i].as_str()).collect();
+    let meter = prosody::meter(&texts);
+    let rhymes = prosody::rhymes(&texts);
+    let marks = idx
+        .iter()
+        .enumerate()
+        .map(|(k, &i)| LineMark {
+            line: i as u32,
+            syllables: prosody::line_shape(texts[k]).total as u32,
+            rhyme: rhymes[k]
+                .as_ref()
+                .map(|r| format!("{}{}", r.letter, if r.redif { "+r" } else { "" })),
+            off: meter.as_ref().is_some_and(|m| !m.fits(texts[k])),
+        })
+        .collect();
+    Verse {
+        fits: meter.as_ref().map_or(0, |m| m.fits as u32),
+        of: meter.as_ref().map_or(texts.len() as u32, |m| m.of as u32),
+        meter: meter.map(|m| m.label()),
+        marks,
+    }
+}
+
 /// Whether a file in the poems folder is a poem, by the desktop's rule.
 #[uniffi::export]
 pub fn is_poem_file_name(name: String) -> bool {
@@ -612,6 +664,7 @@ pub fn profile_toml(profile: Profile) -> String {
         series: profile.series.trim().to_string(),
         lang: profile.lang,
         night_cutoff: profile.night_cutoff,
+        week_format: profile.week_format,
     })
 }
 
@@ -815,6 +868,45 @@ mod tests {
         assert_eq!(core.search("MISRA".into(), None).len(), 2);
         assert_eq!(core.search("misra".into(), None).len(), 0);
         assert_eq!(core.t("drafts".into()), "✎ Taslaklar");
+    }
+
+    #[test]
+    fn week_pattern() {
+        let mut t = texts();
+        t.profile =
+            Some("author = \"Deniz Yalın\"\nweek_format = \"{week}. Hafta {yy}'\"\n".into());
+        t.weeks = None;
+        let core = PoetCore::new(
+            vec![file(
+                "Liman",
+                None,
+                "Liman\n\nbir\n\n- Deniz Yalın. 27.10.2026 - 21.30\n",
+            )],
+            t,
+        );
+        assert_eq!(core.weeks()[0].label, "44. Hafta 26'");
+        assert_eq!(core.space(None).stats.per_group[0].label, "44. Hafta 26'");
+    }
+
+    #[test]
+    fn verse_marks() {
+        let v = verse(
+            [
+                "Kıyı",
+                "",
+                "Gece ağır bir rüzgâr eser uzak kıyıdan",
+                "Bir kuş konar dallara eser serin kıyıdan",
+                "Deniz yine sessizdi",
+                "",
+                "- Deniz Yalın. 05.10.2026 - 21.30",
+            ]
+            .map(String::from)
+            .to_vec(),
+        );
+        assert_eq!((v.meter.as_deref(), v.fits, v.of), (Some("7+7"), 2, 3));
+        assert_eq!(v.marks.len(), 3);
+        assert_eq!(v.marks[0].rhyme.as_deref(), Some("a+r"));
+        assert!(v.marks[2].off);
     }
 
     #[test]

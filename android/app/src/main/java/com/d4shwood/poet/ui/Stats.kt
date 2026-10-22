@@ -45,12 +45,14 @@ fun StatsScreen(ui: Ui) {
                     TermBox(ui.t(if (ui.space == null) "per_week" else "per_year"), Modifier.fillMaxWidth(), focused = false) {
                         Column {
                             val max = (s.perGroup.maxOfOrNull { it.count } ?: 1uL).coerceAtLeast(1uL)
-                            val barW = (cells - 18).coerceAtLeast(4).toULong()
+                            // The label column fits the longest label, as in the terminal.
+                            val labelW = (s.perGroup.maxOfOrNull { it.label.length } ?: 9).coerceIn(5, 18)
+                            val barW = (cells - labelW - 9).coerceAtLeast(4).toULong()
                             // Newest first, as the terminal draws them.
                             for (b in s.perGroup.reversed()) {
                                 val len = ((b.count * barW + max - 1uL) / max).toInt()
                                 Txt(line(
-                                    " ${b.label.padStart(9)} " to span(T.MUTED),
+                                    " ${b.label.take(labelW).padStart(labelW)} " to span(T.MUTED),
                                     "█".repeat(len) to span(T.ACCENT),
                                     " ${b.count}" to span(T.FG),
                                 ), maxLines = 1)

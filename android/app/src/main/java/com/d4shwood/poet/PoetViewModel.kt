@@ -229,6 +229,7 @@ class PoetViewModel(app: Application) : AndroidViewModel(app) {
                     series = s.series.trim().ifEmpty { "Contra Noir" },
                     lang = oldProfile?.lang ?: "auto",
                     nightCutoff = oldProfile?.nightCutoff ?: "05:00",
+                    weekFormat = oldProfile?.weekFormat ?: "",
                 )
                 st.writeShared(PROFILE, profileToml(profile))
                 st.writeShared(AUTHORS, setMainAuthor(old.authors, oldProfile?.author ?: s.name, s.name, s.pens))
@@ -286,6 +287,11 @@ class PoetViewModel(app: Application) : AndroidViewModel(app) {
     // ------------------------------------------------------------ poems
 
     fun readPoem(key: String): String? = store?.read(key)
+
+    /** The writer's meter view (syllables and rhymes beside the lines), remembered. */
+    var meterOn: Boolean
+        get() = prefs.getBoolean("meter", false)
+        set(v) = prefs.edit().putBoolean("meter", v).apply()
 
     /**
      * Writes a poem. A new poem gets a free file name from its title; a draft's
