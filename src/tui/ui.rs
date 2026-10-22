@@ -693,7 +693,14 @@ fn draw_stats(f: &mut Frame, area: Rect, app: &App) {
         .max()
         .unwrap_or(1)
         .max(1);
-    let bar_w = weeks.width.saturating_sub(18) as u64;
+    let label_w = s
+        .per_group
+        .iter()
+        .map(|(l, _)| l.width())
+        .max()
+        .unwrap_or(9)
+        .clamp(5, 18);
+    let bar_w = weeks.width.saturating_sub(label_w as u16 + 9) as u64;
     let rows = weeks.height.saturating_sub(2) as usize;
     let lines: Vec<Line> = s
         .per_group
@@ -703,7 +710,7 @@ fn draw_stats(f: &mut Frame, area: Rect, app: &App) {
         .map(|(label, n)| {
             let len = (n * bar_w).div_ceil(max) as usize;
             Line::from(vec![
-                Span::styled(format!(" {label:>9} "), Style::default().fg(MUTED)),
+                Span::styled(format!(" {label:>label_w$} "), Style::default().fg(MUTED)),
                 Span::styled("█".repeat(len), Style::default().fg(ACCENT)),
                 Span::styled(format!(" {n}"), Style::default().fg(FG)),
             ])

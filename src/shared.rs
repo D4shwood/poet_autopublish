@@ -35,6 +35,10 @@ pub struct Profile {
     pub lang: String,
     /// "HH:MM"; poems signed before it count as the previous day.
     pub night_cutoff: String,
+    /// How weeks without a name of their own are named: "" for the date of
+    /// their first poem ("5 Ekim Haftası"), or a pattern such as
+    /// "{week}. Hafta {yy}'" ({week} week of the year, {yy}/{yyyy} its year).
+    pub week_format: String,
 }
 
 impl Default for Profile {
@@ -44,6 +48,7 @@ impl Default for Profile {
             series: "Contra Noir".into(),
             lang: "auto".into(),
             night_cutoff: "05:00".into(),
+            week_format: String::new(),
         }
     }
 }

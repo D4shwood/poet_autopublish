@@ -195,10 +195,11 @@ pub fn library(cfg: &Config, poems_dir: &Path) -> Result<Library> {
         cfg.night_cutoff(),
         &cfg.series,
     );
-    let names = crate::shared::week_names(poems_dir);
-    for w in &mut weeks {
-        w.name = names.get(&w.key).cloned();
-    }
+    volume::name_weeks(
+        &mut weeks,
+        &crate::shared::week_names(poems_dir),
+        &cfg.week_format,
+    );
     let collections = volume::collections(&scan.collections, &authors);
     Ok(Library {
         scan,

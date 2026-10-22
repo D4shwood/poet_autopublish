@@ -155,6 +155,11 @@ October") unless you rename it with `r` in the interface. Custom names are kept
 in `.poet/weeks.toml` in the poems folder. They change the cover, the contents
 and the PDF title, but not the file name.
 
+To name new weeks by number instead, set a pattern in `.poet/profile.toml`:
+`week_format = "{week}. Hafta {yy}'"` gives *44. Hafta 26'* (`{week}` is the
+week of the year, `{yy}` / `{yyyy}` its year). Weeks with a name of their own
+keep it.
+
 For each week, `<series>_DD_MM_week.pdf` is named after the week's first poem,
 for example `contra_noir_13_10_week.pdf`. The cumulative book is
 `<series>_all.pdf`, with the newest week first. Set `mirror_dir` to also copy
