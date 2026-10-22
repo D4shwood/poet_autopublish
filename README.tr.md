@@ -19,6 +19,25 @@ Programın adı `poetautopublish`, kısa komutu `poet`.
 
 ## Kurulum
 
+### Windows
+
+[Releases](https://github.com/D4shwood/poet_autopublish/releases) sayfasından
+`poetautopublish-…-windows-setup.exe` dosyasını indirip çalıştır. Yönetici
+izni gerekmez. Başlat menüsüne *poetautopublish* ve *Yeni şiir* girdilerini,
+komut satırı için `poet` komutunu ve bir kaldırıcı ekler. Kurulum dosyası
+imzalı olmadığı için Windows "bilinmeyen yayımcı" uyarısı verebilir:
+**Ek bilgi → Yine de çalıştır**'ı seç.
+
+Ya da `…-windows-portable.zip` dosyasını istediğin yere açıp
+`poetautopublish.exe`'yi çalıştır.
+
+Yazma, imzalama, koleksiyonlar, yayınlar ve istatistikler Windows'ta çalışır.
+PDF'ler için şimdilik XeLaTeX gerekir ([MiKTeX](https://miktex.org) ya da TeX
+Live); dahili bir PDF motoru planlanıyor. Arayüz en iyi Windows 11'in
+terminalinde görünür.
+
+### Linux
+
 Birkaç yaygın paketle birlikte XeLaTeX gerekir. Arch / CachyOS'ta:
 
 ```sh
@@ -142,6 +161,11 @@ Bir hafta, en erken şiirinin tarihiyle adlandırılır ("5 Ekim Haftası"). Ara
 klasöründeki `.poet/weeks.toml` dosyasında tutulur. Kapağı, içindekileri
 ve PDF başlığını değiştirir, dosya adını değiştirmez.
 
+Yeni haftaları numarayla adlandırmak için `.poet/profile.toml` dosyasına bir
+kalıp yaz: `week_format = "{week}. Hafta {yy}'"` *44. Hafta 26'* verir
+(`{week}` yılın kaçıncı haftası, `{yy}` / `{yyyy}` yılı). Kendi adı olan
+haftalar adını korur.
+
 Her hafta için haftanın ilk şiirinin adını taşıyan bir
 `<seri>_GG_AA_week.pdf` dosyası oluşur, örneğin `contra_noir_13_10_week.pdf`.
 Toplu kitabın adı `<seri>_all.pdf`'tir ve en yeni hafta en başta yer alır.
@@ -183,10 +207,25 @@ Yazma ekranında:
 - `Ctrl+G` şu anki saatle imzalar ve yayımlar.
 - `Ctrl+T` daktilo modunu açıp kapatır.
 - `Ctrl+Z` geri alır.
+- `Ctrl+E` ölçüyü gösterir (aşağıda).
 - `Esc` kaydedip geri döner.
 
 Her kayıt yerel bir geçmişte saklanır
 (`~/.local/share/poetautopublish/history`, şiir başına son 50 sürüm).
+
+**Hece ölçüsü ve kafiye.** `Ctrl+E` her mısranın yanında hece sayısını ve
+kafiyesini gösterir: `14 a` on dört hece ve *a* kafiye grubu demek; `+r`
+rediftir (birkaç mısrayı bitiren aynı kelime); `⚠` ise mısraların çoğunun
+tuttuğu ölçüyü bozan mısrayı gösterir. Durum satırında o ölçü yazar
+(`hece 7+7 12/14` gibi) ya da şiir serbestse *serbest*. Heceler ünlülerden
+sayılır; ölçünün durakları kelime aralarına denk gelmelidir.
+
+**Geçmiş.** `h` ekranında `↑↓` sürüm seçer, `v` seçili sürümü şimdiki metinle
+karşılaştırır, `←`/`→` her sürümün neyi değiştirdiğini gösterir, `Space`
+şiirin yazılışını sürüm sürüm oynatır: silinen kelimeler üstü çizili,
+eklenenler altı çizili. Ayarlarda `variants = true` olursa toplu kitabın
+sonuna bir *Varyantlar* bölümü eklenir; düzeltilen her şiir ilk tam
+taslağından son hâline gösterilir.
 
 Arka plan servisi çalışmıyorsa, arayüz açık olduğu sürece klasörü kendisi izler.
 

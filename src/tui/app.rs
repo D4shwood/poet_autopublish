@@ -3,15 +3,16 @@ use super::preview::Preview;
 use super::writer::{self, Editor};
 use crate::build::{self, Library};
 use crate::config::{Config, log_path};
-use crate::history::{self, Snapshot};
 use crate::install;
 use crate::lang::Lang;
 #[cfg(feature = "preview")]
 use crate::latex::Ctx;
 use crate::poem::{Poem, Status};
 use crate::search::{self, Hit};
+use crate::variants;
 use crate::watch::{self, Watcher};
 use anyhow::Result;
+use chrono::NaiveDateTime;
 use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use std::fs;
 use std::path::PathBuf;
@@ -62,6 +63,29 @@ pub enum AuthorStep {
     AddPen { author: usize },
 }
 
+/// The history screen: a poem's versions, oldest first, the current text last.
+pub struct History {
+    pub title: String,
+    pub versions: Vec<(Option<NaiveDateTime>, String)>,
+    pub sel: usize,
+    pub view: HistoryView,
+    /// When the replay last advanced; None when it isn't playing.
+    pub playing: Option<Instant>,
+}
+
+#[derive(Clone, Copy, PartialEq)]
+pub enum HistoryView {
+    /// The selected version as it was.
+    Text,
+    /// What changed from the version before it (replay and ←/→).
+    Step,
+    /// The selected version against the current text.
+    AgainstNow,
+}
+
+/// How long the replay shows each version.
+const REPLAY_STEP: Duration = Duration::from_millis(800);
+
 pub enum Mode {
     Main,
     Writer(Box<Editor>),
@@ -70,11 +94,7 @@ pub enum Mode {
         hits: Vec<Hit>,
         sel: usize,
     },
-    History {
-        title: String,
-        snaps: Vec<Snapshot>,
-        sel: usize,
-    },
+    History(Box<History>),
     Stats,
     Log {
         scroll: usize,
@@ -426,6 +446,17 @@ impl App {
     }
 
     pub fn tick(&mut self) {
+        if let Mode::History(h) = &mut self.mode
+            && let Some(at) = h.playing
+            && at.elapsed() >= REPLAY_STEP
+        {
+            if h.sel + 1 < h.versions.len() {
+                h.sel += 1;
+                h.playing = Some(Instant::now());
+            } else {
+                h.playing = None;
+            }
+        }
         if self.tui_watch.as_mut().is_some_and(|w| w.poll()) {
             self.start_build(false);
         }
@@ -501,19 +532,18 @@ impl App {
     fn open_pdf(&mut self) {
         match self.selected_pdf() {
             Some((p, _)) => {
-                // xdg-open may hand PDFs to a non-PDF app (e.g. a notes app), so
-                // the config can name the viewer.
+                // The desktop default may hand PDFs to a non-PDF app (e.g. a notes
+                // app), so the config can name the viewer.
                 let viewer = self.cfg.pdf_viewer.trim();
-                let viewer = if viewer.is_empty() {
-                    "xdg-open"
+                let mut cmd = if viewer.is_empty() {
+                    crate::open::default_app(&p)
                 } else {
-                    viewer
+                    let mut c = Command::new(viewer);
+                    c.arg(&p);
+                    c
                 };
-                let spawned = Command::new(viewer)
-                    .arg(p)
-                    .stdout(Stdio::null())
-                    .stderr(Stdio::null())
-                    .spawn();
+                let viewer = if viewer.is_empty() { "open" } else { viewer };
+                let spawned = cmd.stdout(Stdio::null()).stderr(Stdio::null()).spawn();
                 if let Err(e) = spawned {
                     self.say(format!("{viewer}: {e}"));
                 }
@@ -619,28 +649,56 @@ impl App {
             Mode::Search { query, hits, sel } => {
                 (self.key_search(query, hits, sel, k), Action::None)
             }
-            Mode::History { title, snaps, sel } => {
-                let n = snaps.len();
+            Mode::History(_) if matches!(k.code, KeyCode::Esc | KeyCode::Char('q')) => {
+                (Mode::Main, Action::None)
+            }
+            Mode::History(mut h) => {
+                let last = h.versions.len().saturating_sub(1);
                 match k.code {
-                    KeyCode::Esc | KeyCode::Char('q') => (Mode::Main, Action::None),
-                    KeyCode::Up | KeyCode::Char('k') => (
-                        Mode::History {
-                            title,
-                            snaps,
-                            sel: sel.saturating_sub(1),
-                        },
-                        Action::None,
-                    ),
-                    KeyCode::Down | KeyCode::Char('j') => (
-                        Mode::History {
-                            title,
-                            snaps,
-                            sel: (sel + 1).min(n.saturating_sub(1)),
-                        },
-                        Action::None,
-                    ),
-                    _ => (Mode::History { title, snaps, sel }, Action::None),
+                    KeyCode::Up | KeyCode::Char('k') => {
+                        h.sel = h.sel.saturating_sub(1);
+                        h.view = HistoryView::Text;
+                        h.playing = None;
+                    }
+                    KeyCode::Down | KeyCode::Char('j') => {
+                        h.sel = (h.sel + 1).min(last);
+                        h.view = HistoryView::Text;
+                        h.playing = None;
+                    }
+                    // This version against the current text.
+                    KeyCode::Char('v') => {
+                        h.view = if h.view == HistoryView::AgainstNow {
+                            HistoryView::Text
+                        } else {
+                            HistoryView::AgainstNow
+                        };
+                        h.playing = None;
+                    }
+                    // Replay: each version in turn, with what changed since the one before.
+                    KeyCode::Char(' ') => {
+                        if h.playing.is_some() {
+                            h.playing = None;
+                        } else {
+                            if h.sel >= last {
+                                h.sel = 0;
+                            }
+                            h.view = HistoryView::Step;
+                            h.playing = Some(Instant::now());
+                        }
+                    }
+                    KeyCode::Left => {
+                        h.sel = h.sel.saturating_sub(1);
+                        h.view = HistoryView::Step;
+                        h.playing = None;
+                    }
+                    KeyCode::Right => {
+                        h.sel = (h.sel + 1).min(last);
+                        h.view = HistoryView::Step;
+                        h.playing = None;
+                    }
+                    _ => {}
                 }
+                (Mode::History(h), Action::None)
             }
             Mode::Stats => match k.code {
                 KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('s') => {
@@ -894,13 +952,15 @@ impl App {
             }
             KeyCode::Char('h') => {
                 if let Some(p) = self.selected_poem() {
-                    let snaps = history::list(&p.file_name);
-                    let sel = snaps.len().saturating_sub(1);
-                    self.mode = Mode::History {
+                    let versions = variants::versions(&p.file_name, &p.raw);
+                    let sel = versions.len().saturating_sub(1);
+                    self.mode = Mode::History(Box::new(History {
                         title: p.title.clone(),
-                        snaps,
+                        versions,
                         sel,
-                    };
+                        view: HistoryView::Text,
+                        playing: None,
+                    }));
                 }
             }
             KeyCode::Char('o') => self.open_pdf(),
@@ -957,6 +1017,12 @@ impl App {
                 }
             }
             KeyCode::Char('t') if ctrl && !alt => ed.typewriter = !ed.typewriter,
+            KeyCode::Char('e') if ctrl && !alt => {
+                self.cfg.prosody = !self.cfg.prosody;
+                if let Err(e) = self.cfg.save() {
+                    ed.message = Some(format!("{e:#}"));
+                }
+            }
             KeyCode::Char('z') if ctrl && !alt => ed.undo(),
             // AltGr arrives as Ctrl+Alt on some terminals; treat it as text.
             KeyCode::Char(c) if !ctrl || alt => ed.insert_char(c),

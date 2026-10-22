@@ -115,6 +115,13 @@ impl Report {
     }
 }
 
+/// How to get a TeX that builds the PDFs, on this platform.
+const INSTALL_TEX: &str = if cfg!(windows) {
+    "Install MiKTeX (miktex.org) or TeX Live; a built-in PDF engine is planned."
+} else {
+    "Install it with:\n  sudo pacman -S texlive-xetex texlive-latexrecommended texlive-latexextra"
+};
+
 pub fn check_deps() -> Result<()> {
     let ok = Command::new("xelatex")
         .arg("--version")
@@ -122,9 +129,7 @@ pub fn check_deps() -> Result<()> {
         .map(|o| o.status.success())
         .unwrap_or(false);
     if !ok {
-        bail!(
-            "xelatex not found. Install it with:\n  sudo pacman -S texlive-xetex texlive-latexrecommended texlive-latexextra"
-        );
+        bail!("xelatex not found, so no PDFs are built (writing works without it). {INSTALL_TEX}");
     }
     let missing: Vec<&str> = STYLES
         .iter()
@@ -139,7 +144,7 @@ pub fn check_deps() -> Result<()> {
         .collect();
     if !missing.is_empty() {
         bail!(
-            "missing LaTeX packages: {}. Install them with:\n  sudo pacman -S texlive-latexrecommended texlive-latexextra",
+            "missing LaTeX packages: {}. {INSTALL_TEX}",
             missing.join(", ")
         );
     }
@@ -190,10 +195,11 @@ pub fn library(cfg: &Config, poems_dir: &Path) -> Result<Library> {
         cfg.night_cutoff(),
         &cfg.series,
     );
-    let names = crate::shared::week_names(poems_dir);
-    for w in &mut weeks {
-        w.name = names.get(&w.key).cloned();
-    }
+    volume::name_weeks(
+        &mut weeks,
+        &crate::shared::week_names(poems_dir),
+        &cfg.week_format,
+    );
     let collections = volume::collections(&scan.collections, &authors);
     Ok(Library {
         scan,
@@ -284,7 +290,29 @@ pub fn build(cfg: &Config, poems_dir: Option<&Path>, force: bool) -> Result<Repo
         .map(|w| (w.file_name.clone(), latex::week_doc(w, &ctx), 1))
         .collect();
     if !lib.weeks.is_empty() {
-        wanted.push((lib.book.clone(), latex::book_doc(&lib.weeks, &ctx), 2));
+        // With `variants` on, the book ends with each poem's path from its first draft.
+        let variants: Vec<latex::Variant> = if cfg.variants {
+            lib.weeks
+                .iter()
+                .flat_map(|w| w.poems.iter())
+                .filter_map(|p| {
+                    let j = crate::variants::journey(&p.file_name, &p.raw)?;
+                    Some(latex::Variant {
+                        poem: p,
+                        first: j.first,
+                        versions: j.versions,
+                        diff: j.diff,
+                    })
+                })
+                .collect()
+        } else {
+            vec![]
+        };
+        wanted.push((
+            lib.book.clone(),
+            latex::book_doc(&lib.weeks, &variants, &ctx),
+            2,
+        ));
     }
     // A collection gets its book once it has a signed poem.
     for c in lib.collections.iter().filter(|c| !c.poems.is_empty()) {

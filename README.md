@@ -19,6 +19,25 @@ The program is `poetautopublish` (short: `poet`).
 
 ## Install
 
+### Windows
+
+Download `poetautopublish-…-windows-setup.exe` from
+[Releases](https://github.com/D4shwood/poet_autopublish/releases) and run it.
+No administrator rights are needed. It adds *poetautopublish* and *New poem*
+to the Start menu, a `poet` command for terminals, and an uninstaller.
+Windows may warn that the publisher is unknown, because the installer isn't
+code-signed: choose **More info → Run anyway**.
+
+Or take the `…-windows-portable.zip`, unzip it anywhere and run
+`poetautopublish.exe`.
+
+Writing, signing, collections, publications and stats all work on Windows.
+The PDFs need XeLaTeX for now ([MiKTeX](https://miktex.org) or TeX Live); a
+built-in PDF engine is planned. Windows 11's terminal shows the interface
+best.
+
+### Linux
+
 You need XeLaTeX with a few common packages. On Arch / CachyOS:
 
 ```sh
@@ -136,6 +155,11 @@ October") unless you rename it with `r` in the interface. Custom names are kept
 in `.poet/weeks.toml` in the poems folder. They change the cover, the contents
 and the PDF title, but not the file name.
 
+To name new weeks by number instead, set a pattern in `.poet/profile.toml`:
+`week_format = "{week}. Hafta {yy}'"` gives *44. Hafta 26'* (`{week}` is the
+week of the year, `{yy}` / `{yyyy}` its year). Weeks with a name of their own
+keep it.
+
 For each week, `<series>_DD_MM_week.pdf` is named after the week's first poem,
 for example `contra_noir_13_10_week.pdf`. The cumulative book is
 `<series>_all.pdf`, with the newest week first. Set `mirror_dir` to also copy
@@ -175,6 +199,19 @@ In the writing screen: `Ctrl+S` saves (as a draft), `Ctrl+G` signs with the
 current time and publishes, `Ctrl+T` toggles typewriter mode, `Ctrl+Z` undoes,
 and `Esc` saves and goes back. Every save is kept in a local history
 (`~/.local/share/poetautopublish/history`, the last 50 versions per poem).
+
+**Meter and rhyme.** `Ctrl+E` shows each line's syllable count and rhyme
+beside it: `14 a` is fourteen syllables in rhyme group *a*, `+r` marks a redif
+(the same word ending several lines), and `⚠` a line that breaks the meter
+most lines keep. The status line names that meter, e.g. `hece 7+7 12/14`, or
+says the poem is free verse. Syllables are counted by vowels, and a meter's
+pauses must fall between words.
+
+**History.** In `h`, `↑↓` picks a version, `v` compares it with the current
+text, `←`/`→` show what each version changed, and `Space` replays the poem's
+writing version by version: removed words struck through, added ones
+underlined. With `variants = true` in the config, the full book ends with a
+*Variants* chapter showing each revised poem from its first full draft.
 
 When the background service isn't running, the interface watches the folder
 itself while it's open.

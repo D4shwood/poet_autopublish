@@ -225,9 +225,19 @@ impl Lang {
             "draft" => ("taslak", "draft"),
             "signed" => ("imzalı", "signed"),
             "writer_keys" => (
-                "^S kaydet · ^G imzala · ^T daktilo · Esc geri",
-                "^S save · ^G sign · ^T typewriter · Esc back",
+                "^S kaydet · ^G imzala · ^T daktilo · ^E ölçü · Esc geri",
+                "^S save · ^G sign · ^T typewriter · ^E meter · Esc back",
             ),
+            "free_verse" => ("serbest", "free verse"),
+            "now" => ("şimdi", "now"),
+            "variants" => ("Varyantlar", "Variants"),
+            "first_draft" => ("ilk tam taslak", "first full draft"),
+            "version" => ("sürüm", "version"),
+            "history_keys" => (
+                "↑↓ sürüm · v şimdiyle karşılaştır · Space oynat · ←→ adım · Esc geri",
+                "↑↓ version · v compare with now · Space replay · ←→ step · Esc back",
+            ),
+            "syllables" => ("hece", "syllables"),
             "confirm_sign" => ("İmzalayıp yayımlansın mı? (e/h)", "Sign and publish? (y/n)"),
             "confirm_force" => (
                 "Her şey yeniden derlensin mi? (e/h)",

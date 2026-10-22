@@ -1,19 +1,20 @@
-use super::app::{App, Confirm, Item, Mode, Watching};
+use super::app::{App, Confirm, History, HistoryView, Item, Mode, Watching};
 #[cfg(feature = "preview")]
 use super::preview::Page;
 use super::writer::Editor;
 #[cfg(feature = "preview")]
 use super::writer::wrap;
 use crate::authors::norm;
-use crate::poem::Status;
+use crate::poem::{Signature, Status};
+use crate::prosody;
 use crate::stats;
+use crate::variants;
 use chrono::{Datelike, Local};
 use ratatui::Frame;
 use ratatui::layout::{Constraint, Layout, Position, Rect};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Clear, Paragraph, Wrap};
-use std::fs;
 use std::sync::atomic::Ordering;
 use unicode_width::UnicodeWidthStr;
 
@@ -47,7 +48,7 @@ pub fn draw(f: &mut Frame, app: &mut App) {
         return;
     }
     if let Mode::Writer(ed) = &mut app.mode {
-        draw_writer(f, area, ed, app.lib.lang);
+        draw_writer(f, area, ed, app.lib.lang, app.cfg.prosody);
         return;
     }
 
@@ -126,7 +127,8 @@ fn footer(app: &App) -> (String, Style) {
             app.t("collection_keys")
         ),
         Mode::Search { .. } => "⏎ · ↑↓ · Esc".into(),
-        Mode::History { .. } | Mode::Stats | Mode::Log { .. } => "↑↓ · Esc".into(),
+        Mode::History(_) => app.t("history_keys").into(),
+        Mode::Stats | Mode::Log { .. } => "↑↓ · Esc".into(),
         #[cfg(feature = "preview")]
         Mode::Preview => app.t("preview_keys").into(),
         _ => match &app.flash {
@@ -342,47 +344,7 @@ fn draw_right(f: &mut Frame, area: Rect, app: &mut App) {
                 area,
             );
         }
-        Mode::History { title, snaps, sel } => {
-            let [list, view] =
-                Layout::horizontal([Constraint::Length(22), Constraint::Min(10)]).areas(area);
-            let lines: Vec<Line> = if snaps.is_empty() {
-                vec![Line::from(Span::styled(
-                    app.t("no_history"),
-                    Style::default().fg(MUTED),
-                ))]
-            } else {
-                snaps
-                    .iter()
-                    .enumerate()
-                    .map(|(i, s)| {
-                        let style = if i == *sel {
-                            Style::default().fg(BG).bg(ACCENT)
-                        } else {
-                            Style::default().fg(FG)
-                        };
-                        Line::from(Span::styled(
-                            s.at.format(" %d.%m.%Y %H:%M ").to_string(),
-                            style,
-                        ))
-                    })
-                    .collect()
-            };
-            f.render_widget(
-                Paragraph::new(lines).block(panel(app.t("history"), true)),
-                list,
-            );
-            let text = snaps
-                .get(*sel)
-                .and_then(|s| fs::read_to_string(&s.path).ok())
-                .unwrap_or_default();
-            f.render_widget(
-                Paragraph::new(text)
-                    .style(base())
-                    .wrap(Wrap { trim: false })
-                    .block(panel(title, false)),
-                view,
-            );
-        }
+        Mode::History(h) => draw_history(f, area, app, h),
         _ if app.current_item() == Item::Publications => draw_publications(f, area, app),
         _ => draw_poem_list(f, area, app),
     }
@@ -535,6 +497,115 @@ fn draw_publications(f: &mut Frame, area: Rect, app: &App) {
     f.render_widget(Paragraph::new(lines).block(panel(&title, focused)), area);
 }
 
+/// A comparison as styled lines: removed text struck through in the warning
+/// colour, added text underlined in the accent colour.
+fn diff_lines(d: &[variants::LineDiff]) -> Vec<Line<'static>> {
+    d.iter()
+        .map(|l| {
+            Line::from(
+                l.iter()
+                    .map(|s| match s {
+                        variants::Seg::Same(t) => Span::styled(t.clone(), Style::default().fg(FG)),
+                        variants::Seg::Gone(t) => Span::styled(
+                            t.clone(),
+                            Style::default()
+                                .fg(WARN)
+                                .add_modifier(Modifier::CROSSED_OUT),
+                        ),
+                        variants::Seg::New(t) => Span::styled(
+                            t.clone(),
+                            Style::default()
+                                .fg(ACCENT)
+                                .add_modifier(Modifier::UNDERLINED),
+                        ),
+                    })
+                    .collect::<Vec<_>>(),
+            )
+        })
+        .collect()
+}
+
+fn draw_history(f: &mut Frame, area: Rect, app: &App, h: &History) {
+    let [list, view] =
+        Layout::horizontal([Constraint::Length(22), Constraint::Min(10)]).areas(area);
+    let when = |at: &Option<chrono::NaiveDateTime>| match at {
+        Some(t) => t.format(" %d.%m.%Y %H:%M ").to_string(),
+        None => format!(" {:<17}", app.t("now")),
+    };
+    let lines: Vec<Line> = if h.versions.len() < 2 {
+        vec![Line::from(Span::styled(
+            app.t("no_history"),
+            Style::default().fg(MUTED),
+        ))]
+    } else {
+        h.versions
+            .iter()
+            .enumerate()
+            .map(|(i, (at, _))| {
+                let style = if i == h.sel {
+                    Style::default().fg(BG).bg(ACCENT)
+                } else {
+                    Style::default().fg(FG)
+                };
+                Line::from(Span::styled(when(at), style))
+            })
+            .collect()
+    };
+    f.render_widget(
+        Paragraph::new(lines).block(panel(app.t("history"), true)),
+        list,
+    );
+
+    let Some((at, text)) = h.versions.get(h.sel) else {
+        return;
+    };
+    let plain = || -> (Vec<Line>, Option<usize>) {
+        (
+            text.lines().map(|l| Line::from(l.to_string())).collect(),
+            None,
+        )
+    };
+    let compared = |d: Vec<variants::LineDiff>| {
+        let first = d
+            .iter()
+            .position(|l| l.iter().any(|s| !matches!(s, variants::Seg::Same(_))));
+        (diff_lines(&d), first)
+    };
+    let (body, first_change) = match h.view {
+        HistoryView::Text => plain(),
+        HistoryView::Step if h.sel > 0 => compared(variants::diff(&h.versions[h.sel - 1].1, text)),
+        HistoryView::Step => plain(),
+        HistoryView::AgainstNow => compared(variants::diff(text, &h.versions.last().unwrap().1)),
+    };
+    // A long poem scrolls so its first change shows, with a little context above.
+    let visible = view.height.saturating_sub(2) as usize;
+    let scroll = match first_change {
+        Some(i) if i + 2 > visible => (i - 3.min(i)) as u16,
+        _ => 0,
+    };
+    // "sürüm 3/9 · 12.10 23.40", with ▶ while playing.
+    let title = format!(
+        "{} · {} {}/{} ·{}{}",
+        h.title,
+        app.t("version"),
+        h.sel + 1,
+        h.versions.len(),
+        match at {
+            Some(t) => t.format(" %d.%m %H.%M").to_string(),
+            None => format!(" {}", app.t("now")),
+        },
+        if h.playing.is_some() { " ▶" } else { "" }
+    );
+    f.render_widget(
+        Paragraph::new(body)
+            .style(base())
+            .wrap(Wrap { trim: false })
+            .scroll((scroll, 0))
+            .block(panel(&title, false)),
+        view,
+    );
+}
+
 fn truncate(s: &str, n: usize) -> String {
     if s.chars().count() <= n {
         s.to_string()
@@ -622,7 +693,14 @@ fn draw_stats(f: &mut Frame, area: Rect, app: &App) {
         .max()
         .unwrap_or(1)
         .max(1);
-    let bar_w = weeks.width.saturating_sub(18) as u64;
+    let label_w = s
+        .per_group
+        .iter()
+        .map(|(l, _)| l.width())
+        .max()
+        .unwrap_or(9)
+        .clamp(5, 18);
+    let bar_w = weeks.width.saturating_sub(label_w as u16 + 9) as u64;
     let rows = weeks.height.saturating_sub(2) as usize;
     let lines: Vec<Line> = s
         .per_group
@@ -632,7 +710,7 @@ fn draw_stats(f: &mut Frame, area: Rect, app: &App) {
         .map(|(label, n)| {
             let len = (n * bar_w).div_ceil(max) as usize;
             Line::from(vec![
-                Span::styled(format!(" {label:>9} "), Style::default().fg(MUTED)),
+                Span::styled(format!(" {label:>label_w$} "), Style::default().fg(MUTED)),
                 Span::styled("█".repeat(len), Style::default().fg(ACCENT)),
                 Span::styled(format!(" {n}"), Style::default().fg(FG)),
             ])
@@ -683,7 +761,51 @@ fn draw_stats(f: &mut Frame, area: Rect, app: &App) {
     let _ = Local::now().year();
 }
 
-fn draw_writer(f: &mut Frame, area: Rect, ed: &mut Editor, lang: crate::lang::Lang) {
+/// Cells beside the text for the syllable count and rhyme ("⚠14 a+r").
+const MARGIN: u16 = 8;
+
+/// Syllables and rhymes for the body lines, keyed by line index; the signature
+/// and blank lines get none. Also the meter most lines keep.
+fn verse_marks(
+    ed: &Editor,
+) -> (
+    std::collections::HashMap<usize, (String, bool)>,
+    Option<prosody::Meter>,
+) {
+    let verse: Vec<usize> = (1..ed.lines.len())
+        .filter(|&i| !ed.lines[i].trim().is_empty() && Signature::parse(&ed.lines[i]).is_none())
+        .collect();
+    let texts: Vec<&str> = verse.iter().map(|&i| ed.lines[i].as_str()).collect();
+    let meter = prosody::meter(&texts);
+    let rhymes = prosody::rhymes(&texts);
+    let marks = verse
+        .iter()
+        .enumerate()
+        .map(|(k, &i)| {
+            let n = prosody::line_shape(texts[k]).total;
+            let off = meter.as_ref().is_some_and(|m| !m.fits(texts[k]));
+            let rhyme = rhymes[k]
+                .as_ref()
+                .map(|r| format!("{}{}", r.letter, if r.redif { "+r" } else { "" }))
+                .unwrap_or_default();
+            (
+                i,
+                (
+                    format!("{}{n:>2} {rhyme}", if off { "⚠" } else { " " }),
+                    off,
+                ),
+            )
+        })
+        .collect();
+    (marks, meter)
+}
+
+fn draw_writer(f: &mut Frame, area: Rect, ed: &mut Editor, lang: crate::lang::Lang, prosody: bool) {
+    let (marks, meter) = if prosody {
+        verse_marks(ed)
+    } else {
+        Default::default()
+    };
     let mins = ed.started.elapsed().as_secs() / 60;
     let saved = match (&ed.last_saved, ed.dirty) {
         (Some(t), false) => format!("{} {}", lang.t("saved"), t.format("%H.%M")),
@@ -695,7 +817,19 @@ fn draw_writer(f: &mut Frame, area: Rect, ed: &mut Editor, lang: crate::lang::La
     } else {
         lang.t("draft")
     };
-    let tw = if ed.typewriter { " · ⌨" } else { "" };
+    let mut tw = if ed.typewriter { " · ⌨" } else { "" }.to_string();
+    if prosody {
+        tw.push_str(&match &meter {
+            Some(m) => format!(
+                " · {} {} {}/{}",
+                lang.t("syllables"),
+                m.label(),
+                m.fits,
+                m.of
+            ),
+            None => format!(" · {}", lang.t("free_verse")),
+        });
+    }
     let msg = if ed.confirm_sign {
         lang.t("confirm_sign").to_string()
     } else {
@@ -733,7 +867,9 @@ fn draw_writer(f: &mut Frame, area: Rect, ed: &mut Editor, lang: crate::lang::La
     };
     let [page, status] =
         Layout::vertical([Constraint::Min(3), Constraint::Length(status_h as u16)]).areas(area);
-    let width = (page.width.saturating_sub(8) as usize).min(76);
+    // With the meter on, the text leaves room on its right for the marks.
+    let room = if prosody { 2 * (MARGIN + 1) } else { 0 };
+    let width = (page.width.saturating_sub(8 + room) as usize).min(76);
     let left_x = page.x + (page.width.saturating_sub(width as u16)) / 2;
     let text_area = Rect {
         x: left_x,
@@ -803,6 +939,33 @@ fn draw_writer(f: &mut Frame, area: Rect, ed: &mut Editor, lang: crate::lang::La
                 Paragraph::new(Span::styled("↪", Style::default().fg(FAINT))),
                 r,
             );
+        }
+    }
+
+    // The syllable count and rhyme beside each line's first row.
+    if prosody {
+        for (i, (li, _, _, cont)) in rows
+            .iter()
+            .skip(first)
+            .take(h.saturating_sub(top_pad))
+            .enumerate()
+        {
+            let Some((mark, off)) = marks.get(li).filter(|_| !*cont) else {
+                continue;
+            };
+            let r = Rect {
+                x: text_area.x + text_area.width + 1,
+                y: text_area.y + (top_pad + i) as u16,
+                width: MARGIN,
+                height: 1,
+            };
+            if r.x + r.width <= page.x + page.width {
+                let color = if *off { WARN } else { FAINT };
+                f.render_widget(
+                    Paragraph::new(Span::styled(mark.clone(), Style::default().fg(color))),
+                    r,
+                );
+            }
         }
     }
 

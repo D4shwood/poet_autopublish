@@ -24,6 +24,8 @@ pub struct Config {
     pub lang: String,
     /// Poems signed before this time count as the previous day.
     pub night_cutoff: String,
+    /// How unnamed weeks are named; see `shared::Profile::week_format`.
+    pub week_format: String,
     /// Draft-history snapshots kept per poem.
     pub history_keep: usize,
     /// Program that opens PDFs ("" = the desktop default via xdg-open).
@@ -31,6 +33,10 @@ pub struct Config {
     /// Keep the poems folder (a git repo) in step with its remote, and push
     /// the PDFs to its `pdf` branch.
     pub sync: bool,
+    /// Show syllables and rhymes beside the lines while writing (Ctrl+E).
+    pub prosody: bool,
+    /// End the full book with each poem's path from its first draft.
+    pub variants: bool,
 }
 
 impl Default for Config {
@@ -43,9 +49,12 @@ impl Default for Config {
             series: "Contra Noir".into(),
             lang: "auto".into(),
             night_cutoff: "05:00".into(),
+            week_format: String::new(),
             history_keep: 50,
             pdf_viewer: String::new(),
             sync: false,
+            prosody: false,
+            variants: false,
         }
     }
 }
@@ -101,6 +110,7 @@ impl Config {
             series: self.series.clone(),
             lang: self.lang.clone(),
             night_cutoff: self.night_cutoff.clone(),
+            week_format: self.week_format.clone(),
         }
     }
 
@@ -111,6 +121,7 @@ impl Config {
         self.series = p.series;
         self.lang = p.lang;
         self.night_cutoff = p.night_cutoff;
+        self.week_format = p.week_format;
     }
 
     pub fn poems_dir(&self) -> PathBuf {

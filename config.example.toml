@@ -23,3 +23,9 @@ pdf_viewer = ""
 # repo) from the background service: poems written elsewhere arrive and get
 # built, and the PDFs are pushed to the remote's `pdf` branch.
 sync = false
+# Show each line's syllables and rhyme beside it while writing, and the meter
+# in the status line (also Ctrl+E in the writer).
+prosody = false
+# End the full book with a Variants chapter: each revised poem from its first
+# full draft to its final form, removed words struck out, added ones underlined.
+variants = false

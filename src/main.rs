@@ -1,10 +1,11 @@
 pub use poetautopublish::{
-    authors, compose, config, history, lang, poem, search, shared, stats, volume,
+    authors, compose, config, history, lang, poem, prosody, search, shared, stats, variants, volume,
 };
 
 mod build;
 mod install;
 mod latex;
+mod open;
 mod sync;
 mod tui;
 mod watch;

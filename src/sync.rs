@@ -32,6 +32,11 @@ pub fn enabled(cfg: &Config) -> bool {
 
 fn git(dir: &Path, args: &[&str]) -> Result<Output> {
     let out = Command::new("git")
+        // Poems stay byte for byte as written on every device: no CRLF on
+        // Windows, so the phone and the computer see the same files.
+        .args(["-c", "core.autocrlf=false", "-c", "core.safecrlf=false"])
+        // File names as written ("Şiir"), not quoted octal escapes.
+        .args(["-c", "core.quotePath=false"])
         .arg("-C")
         .arg(dir)
         .args(args)
@@ -276,6 +281,13 @@ mod tests {
         let out = sync(&desk).unwrap();
         assert!(out.pulled && out.pushed && out.conflicts.is_empty());
         assert!(desk.join("Gece").exists());
+        // Commit messages name poems as written.
+        fs::write(desk.join("Gövdemde"), "Gövdemde\n").unwrap();
+        sync(&desk).unwrap();
+        assert_eq!(
+            git_ok(&desk, &["log", "-1", "--format=%s"]).unwrap(),
+            "masaüstü: Gövdemde"
+        );
         sync(&phone).unwrap();
         assert!(phone.join("Kum").exists());
         fs::remove_dir_all(root).unwrap();
