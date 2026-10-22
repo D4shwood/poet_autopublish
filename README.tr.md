@@ -161,6 +161,11 @@ Bir hafta, en erken şiirinin tarihiyle adlandırılır ("5 Ekim Haftası"). Ara
 klasöründeki `.poet/weeks.toml` dosyasında tutulur. Kapağı, içindekileri
 ve PDF başlığını değiştirir, dosya adını değiştirmez.
 
+Yeni haftaları numarayla adlandırmak için `.poet/profile.toml` dosyasına bir
+kalıp yaz: `week_format = "{week}. Hafta {yy}'"` *44. Hafta 26'* verir
+(`{week}` yılın kaçıncı haftası, `{yy}` / `{yyyy}` yılı). Kendi adı olan
+haftalar adını korur.
+
 Her hafta için haftanın ilk şiirinin adını taşıyan bir
 `<seri>_GG_AA_week.pdf` dosyası oluşur, örneğin `contra_noir_13_10_week.pdf`.
 Toplu kitabın adı `<seri>_all.pdf`'tir ve en yeni hafta en başta yer alır.

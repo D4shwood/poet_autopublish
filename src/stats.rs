@@ -17,11 +17,18 @@ pub struct Stats {
     pub by_hour: [u64; 24],
 }
 
-/// Poems per week of the series, oldest first.
+/// Poems per week of the series, oldest first: a week's own name if it has
+/// one, else the short date of its first poem ("5 Ekim").
 pub fn per_week(weeks: &[Week], lang: Lang) -> Vec<(String, u64)> {
     weeks
         .iter()
-        .map(|w| (lang.date_short(w.first_date), w.poems.len() as u64))
+        .map(|w| {
+            let label = w
+                .name
+                .clone()
+                .unwrap_or_else(|| lang.date_short(w.first_date));
+            (label, w.poems.len() as u64)
+        })
         .collect()
 }
 

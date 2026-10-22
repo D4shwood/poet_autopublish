@@ -284,7 +284,10 @@ mod tests {
         // Commit messages name poems as written.
         fs::write(desk.join("Gövdemde"), "Gövdemde\n").unwrap();
         sync(&desk).unwrap();
-        assert_eq!(git_ok(&desk, &["log", "-1", "--format=%s"]).unwrap(), "masaüstü: Gövdemde");
+        assert_eq!(
+            git_ok(&desk, &["log", "-1", "--format=%s"]).unwrap(),
+            "masaüstü: Gövdemde"
+        );
         sync(&phone).unwrap();
         assert!(phone.join("Kum").exists());
         fs::remove_dir_all(root).unwrap();

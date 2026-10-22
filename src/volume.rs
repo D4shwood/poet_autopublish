@@ -59,6 +59,28 @@ pub fn publication_order<'a>(poems: &[&'a Poem], authors: &Authors) -> Vec<&'a P
     v
 }
 
+/// A week's name from a pattern: "{week}. Hafta {yy}'" gives "44. Hafta 26'".
+pub fn format_week(pattern: &str, key: &str) -> String {
+    // The key is the ISO week, "2026-W44".
+    let (year, week) = key.split_once("-W").unwrap_or(("", ""));
+    let week = week.trim_start_matches('0');
+    pattern
+        .replace("{week}", week)
+        .replace("{yyyy}", year)
+        .replace("{yy}", year.get(2..).unwrap_or(year))
+}
+
+/// Gives each week its name: one set for it (weeks.toml), else one from the
+/// pattern; with no pattern, weeks keep the date of their first poem.
+pub fn name_weeks(weeks: &mut [Week], names: &BTreeMap<String, String>, pattern: &str) {
+    for w in weeks {
+        w.name = names
+            .get(&w.key)
+            .cloned()
+            .or_else(|| (!pattern.trim().is_empty()).then(|| format_week(pattern, &w.key)));
+    }
+}
+
 /// Groups published poems into weeks, oldest week first.
 pub fn group(
     poems: &[Poem],
@@ -225,6 +247,18 @@ pub fn slug(s: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn week_patterns() {
+        assert_eq!(
+            format_week("{week}. Hafta {yy}'", "2026-W44"),
+            "44. Hafta 26'"
+        );
+        assert_eq!(
+            format_week("Hafta {week} · {yyyy}", "2027-W03"),
+            "Hafta 3 · 2027"
+        );
+    }
     use std::path::Path;
 
     fn poem(name: &str, sig: &str) -> Poem {
