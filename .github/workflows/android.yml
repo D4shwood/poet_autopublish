@@ -1,0 +1,66 @@
+name: Android
+
+# Pushing a tag like android-v0.2.0 builds the signed APK and publishes it as a
+# release of this (private) repo, ready to download on the phone. Run by hand
+# it only builds the APK, as an artifact.
+on:
+  push:
+    tags: ["android-v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    env:
+      NDK_VERSION: 27.2.12479018
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android,x86_64-linux-android
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: android/rust
+      - name: Android NDK and cargo-ndk
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;$NDK_VERSION" "platforms;android-35" "build-tools;35.0.0" > /dev/null
+          cargo install cargo-ndk --locked
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/$NDK_VERSION" >> "$GITHUB_ENV"
+      - name: Release key
+        env:
+          KEYSTORE_B64: ${{ secrets.POET_KEYSTORE_B64 }}
+        run: |
+          echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.jks"
+          echo "POET_KEYSTORE=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
+      - name: Build
+        working-directory: android
+        env:
+          POET_KEYSTORE_PASSWORD: ${{ secrets.POET_KEYSTORE_PASSWORD }}
+        run: |
+          # "android-v0.2.0" → 0.2.0; a run by hand is "dev". The run number keeps
+          # every build's versionCode above the last.
+          name="${GITHUB_REF_NAME#android-v}"
+          [ "$GITHUB_REF_TYPE" = tag ] || name="dev"
+          chmod +x gradlew
+          ./gradlew assembleRelease --console=plain \
+            -PversionCode="${{ github.run_number }}" -PversionName="$name"
+          mkdir -p ../dist
+          cp app/build/outputs/apk/release/app-release.apk "../dist/Poet-$name.apk"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: apk
+          path: dist/*.apk
+      - name: Publish
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" --verify-tag --title "Poet ${GITHUB_REF_NAME#android-v}" \
+            --notes "Open this page on the phone, download the APK below and install it." dist/*.apk

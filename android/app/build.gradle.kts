@@ -12,17 +12,33 @@ android {
         applicationId = "com.d4shwood.poet"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0"
+        // A release passes these (-PversionCode=… -PversionName=…); each must grow
+        // for an update to install over the version before.
+        versionCode = (findProperty("versionCode") as String?)?.toInt() ?: 1
+        versionName = (findProperty("versionName") as String?) ?: "0.1.0-dev"
         // Only the architectures build-rust.sh builds the core for.
         ndk { abiFilters += listOf("arm64-v8a", "x86_64") }
+    }
+
+    // The release key, when given: POET_KEYSTORE (a file) and POET_KEYSTORE_PASSWORD.
+    // Every release must carry the same key, or phones refuse the update.
+    val keystore = System.getenv("POET_KEYSTORE")?.let(::file)?.takeIf { it.exists() }
+    signingConfigs {
+        if (keystore != null) {
+            create("release") {
+                storeFile = keystore
+                storePassword = System.getenv("POET_KEYSTORE_PASSWORD")
+                keyAlias = "poet"
+                keyPassword = System.getenv("POET_KEYSTORE_PASSWORD")
+            }
+        }
     }
 
     buildTypes {
         release {
             isMinifyEnabled = false
-            // Signed with the debug key until there is a real release key.
-            signingConfig = signingConfigs.getByName("debug")
+            // Without the release key (a local build), the debug key.
+            signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
         }
     }
     compileOptions {
