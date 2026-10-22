@@ -29,8 +29,10 @@ pub enum Item {
     All,
     /// A subfolder's book, outside the weekly series. ⏎ enters it as the space.
     Collection(usize),
-    /// Inside a collection: its book (all its published poems).
+    /// Inside a collection: its book (your published poems in it).
     Book,
+    /// Inside a collection: every poem in its folder, whoever wrote it, drafts too.
+    Everything,
     /// Inside a collection: back to the weekly series.
     Series,
     /// The space's poems grouped by where they were published.
@@ -237,6 +239,7 @@ impl App {
             }
             Some(cur) => {
                 items.push(Item::Book);
+                items.push(Item::Everything);
                 items.push(Item::Publications);
                 items.push(Item::Series);
                 for i in (0..self.lib.collections.len()).filter(|i| *i != cur) {
@@ -326,7 +329,9 @@ impl App {
             Item::Week(i) => self.lib.weeks[i].poems.len(),
             Item::All => self.lib.weeks.iter().map(|w| w.poems.len()).sum(),
             Item::Collection(i) => self.lib.scan.collections[i].1.len(),
-            Item::Book | Item::Series | Item::Publications => self.right_poems_for(item).len(),
+            Item::Book | Item::Everything | Item::Series | Item::Publications => {
+                self.right_poems_for(item).len()
+            }
             Item::Unsigned => self.with_status(|s| *s == Status::Unsigned).len(),
             Item::Drafts | Item::ContinueDraft => self.with_status(|s| *s == Status::Draft).len(),
             _ => 0,
@@ -349,6 +354,12 @@ impl App {
     fn right_poems_for(&self, item: Item) -> Vec<&Poem> {
         match item {
             Item::Book => self.space_published(),
+            // The whole folder, by title.
+            Item::Everything => {
+                let mut v = self.space_poems();
+                v.sort_by_key(|p| crate::volume::turkish_key(&p.title));
+                v
+            }
             // Sorted journal → issue → title, which is the order the tree is drawn in.
             // The whole issue as an archive: tracked poems by other authors too.
             Item::Publications => {
@@ -418,7 +429,7 @@ impl App {
             Item::Week(i) => Some((out.join(&self.lib.weeks[i].file_name), None)),
             Item::All => Some((out.join(&self.lib.book), None)),
             Item::Collection(i) => Some((out.join(&self.lib.collections[i].file_name), None)),
-            Item::Book => self
+            Item::Book | Item::Everything => self
                 .space_index()
                 .map(|i| (out.join(&self.lib.collections[i].file_name), None)),
             Item::Series => Some((out.join(&self.lib.book), None)),
