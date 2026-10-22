@@ -227,7 +227,8 @@ fn item_label(app: &App, item: Item) -> String {
             format!("  {}  ({})", app.lib.scan.collections[i].0, app.count(item))
         }
         Item::NewCollection => format!("  {}", app.t("new_collection")),
-        Item::Book => format!("  {}  ({})", app.t("all_poems"), app.count(item)),
+        Item::Book => format!("  {}  ({})", app.t("my_poems"), app.count(item)),
+        Item::Everything => format!("  {}  ({})", app.t("all_poems"), app.count(item)),
         Item::Publications => format!("  {}  ({})", app.t("publications"), app.count(item)),
         Item::Series => format!("  ◆ {}  ({})", app.cfg.series, app.count(item)),
         Item::Unsigned => format!("{}  ({})", app.t("unsigned"), app.count(item)),

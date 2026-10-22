@@ -145,6 +145,7 @@ impl Lang {
             "rev" => ("rev.", "rev."),
             "first_published" => ("ilk yayın:", "first published in"),
             "all_poems" => ("Bütün şiirler", "All poems"),
+            "my_poems" => ("Şiirlerim", "My poems"),
             "new_poem" => ("✎ Yeni şiir", "✎ New poem"),
             "continue_draft" => ("↺ Taslağa devam", "↺ Continue a draft"),
             "unsigned" => ("⚠ İmzasız", "⚠ Unsigned"),
