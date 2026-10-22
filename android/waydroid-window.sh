@@ -6,7 +6,9 @@ set -eu
 SOCKET=wayland-poet
 
 waydroid session stop >/dev/null 2>&1 || true
-if [ ! -S "$XDG_RUNTIME_DIR/$SOCKET" ]; then
+# A socket file can outlive weston, so look for the process itself.
+if ! pgrep -f -- "--socket=$SOCKET" >/dev/null; then
+    rm -f "$XDG_RUNTIME_DIR/$SOCKET" "$XDG_RUNTIME_DIR/$SOCKET.lock"
     setsid weston --backend=wayland --width=450 --height=960 --socket=$SOCKET \
         --shell=kiosk --idle-time=0 >/dev/null 2>&1 &
     sleep 2
@@ -20,4 +22,11 @@ for _ in $(seq 1 60); do
     sleep 2
 done
 [ -n "${ip:-}" ] || { echo "Android got no IP address (is ufw allowing waydroid0?)"; exit 1; }
-"${ANDROID_HOME:-$HOME/Android/Sdk}/platform-tools/adb" connect "$ip:5555"
+# Android answers a little after it has an address.
+adb="${ANDROID_HOME:-$HOME/Android/Sdk}/platform-tools/adb"
+for _ in $(seq 1 30); do
+    "$adb" connect "$ip:5555" | grep -q "connected to" && exit 0
+    sleep 4
+done
+echo "adb couldn't reach Android at $ip"
+exit 1
