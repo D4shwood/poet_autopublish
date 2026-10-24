@@ -400,10 +400,30 @@ fn poems_in(dir: &Path) -> Vec<Poem> {
     poems
 }
 
-pub fn scan(dir: &Path) -> Result<Scan> {
+/// Where the weekly series lives: its own subfolder named after the series when
+/// there is one, else the poems folder itself.
+pub fn series_dir(dir: &Path, series: &str) -> PathBuf {
+    let own = dir.join(series);
+    if !series.is_empty() && own.is_dir() {
+        own
+    } else {
+        dir.to_path_buf()
+    }
+}
+
+pub fn scan(dir: &Path, series: &str) -> Result<Scan> {
     let mut out = Scan::default();
-    let entries = fs::read_dir(dir).with_context(|| format!("reading {}", dir.display()))?;
-    for entry in entries.flatten() {
+    let home = series_dir(dir, series);
+    // Loose files in the poems folder still count as the series, so a poem left
+    // there after the move is not lost.
+    let mut entries: Vec<fs::DirEntry> = fs::read_dir(dir)
+        .with_context(|| format!("reading {}", dir.display()))?
+        .flatten()
+        .collect();
+    if home != dir {
+        entries.extend(fs::read_dir(&home)?.flatten());
+    }
+    for entry in entries {
         let path = entry.path();
         if !path.is_file() {
             continue;
@@ -426,12 +446,13 @@ pub fn scan(dir: &Path) -> Result<Scan> {
     }
     out.poems.sort_by(|a, b| a.file_name.cmp(&b.file_name));
 
-    // Every visible subfolder is a collection outside the weekly series.
+    // Every other visible subfolder is a collection outside the weekly series.
     let mut folders: Vec<PathBuf> = fs::read_dir(dir)?
         .flatten()
         .map(|e| e.path())
         .filter(|p| {
             p.is_dir()
+                && *p != home
                 && p.file_name()
                     .map(|n| !n.to_string_lossy().starts_with(['.', '_']))
                     .unwrap_or(false)
@@ -631,5 +652,26 @@ mod tests {
         let e = Epigraph::parse("Bir söz.\n— Biri\n\n13.10.2026\n").unwrap();
         assert_eq!(e.lines, vec!["Bir söz.", "— Biri"]);
         assert_eq!(e.date, NaiveDate::from_ymd_opt(2026, 10, 13).unwrap());
+    }
+
+    #[test]
+    fn series_in_its_own_folder() {
+        let dir = std::env::temp_dir().join(format!("poet-series-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(dir.join("Seri")).unwrap();
+        fs::create_dir_all(dir.join("Defter")).unwrap();
+        fs::write(dir.join("Seri/Bir"), "Bir\n\nsatır\n").unwrap();
+        fs::write(dir.join("Gevşek"), "Gevşek\n\nsatır\n").unwrap();
+        fs::write(dir.join("Defter/İki"), "İki\n\nsatır\n").unwrap();
+        let s = scan(&dir, "Seri").unwrap();
+        let names: Vec<&str> = s.poems.iter().map(|p| p.file_name.as_str()).collect();
+        assert_eq!(names, vec!["Bir", "Gevşek"]);
+        assert_eq!(s.collections.len(), 1);
+        assert_eq!(s.collections[0].0, "Defter");
+        // Without the folder, the series is the poems folder and "Seri" a collection.
+        let s = scan(&dir, "Başka").unwrap();
+        assert_eq!(s.poems.len(), 1);
+        assert_eq!(s.collections.len(), 2);
+        fs::remove_dir_all(&dir).unwrap();
     }
 }

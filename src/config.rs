@@ -128,6 +128,11 @@ impl Config {
         expand(&self.poems_dir)
     }
 
+    /// Where new series poems go: the series' own subfolder when there is one.
+    pub fn series_dir(&self) -> PathBuf {
+        crate::poem::series_dir(&self.poems_dir(), &self.series)
+    }
+
     pub fn out_dir(&self) -> PathBuf {
         expand(&self.out_dir)
     }

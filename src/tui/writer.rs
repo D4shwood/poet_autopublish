@@ -254,8 +254,8 @@ impl Editor {
             Some(p) => p
                 .parent()
                 .map(Path::to_path_buf)
-                .unwrap_or_else(|| cfg.poems_dir()),
-            None => self.dir.clone().unwrap_or_else(|| cfg.poems_dir()),
+                .unwrap_or_else(|| cfg.series_dir()),
+            None => self.dir.clone().unwrap_or_else(|| cfg.series_dir()),
         };
         fs::create_dir_all(&dir)?;
         let wanted = sanitize(self.title());
@@ -366,7 +366,12 @@ pub fn wrap(line: &str, width: usize) -> Vec<(usize, String)> {
 
 /// History key, matching `Poem::file_name`: "name", or "Folder/name" in a collection.
 fn history_key(cfg: &Config, path: &Path) -> String {
-    path.strip_prefix(cfg.poems_dir())
+    // A series poem keeps its bare name, wherever the series folder is.
+    let base = match path.parent() {
+        Some(d) if d == cfg.series_dir() => cfg.series_dir(),
+        _ => cfg.poems_dir(),
+    };
+    path.strip_prefix(base)
         .map(|r| r.to_string_lossy().to_string())
         .unwrap_or_else(|_| {
             path.file_name()
