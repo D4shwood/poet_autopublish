@@ -189,6 +189,8 @@ pub struct PoetCore {
     weeks: Vec<volume::Week>,
     collections: Vec<volume::Collection>,
     modified: HashMap<String, i64>,
+    /// The series' own subfolder, when its poems live in one.
+    series_folder: Option<String>,
 }
 
 #[uniffi::export]
@@ -211,14 +213,25 @@ impl PoetCore {
         let mut scan = Scan::default();
         let mut folders: std::collections::BTreeMap<String, Vec<Poem>> = Default::default();
         let mut modified = HashMap::new();
+        let series = profile.series.trim().to_string();
+        let mut series_folder = None;
         for f in files {
+            // A subfolder named after the series holds the series, as on the desktop.
+            let in_series = f.collection.as_deref() == Some(series.as_str()) && !series.is_empty();
             let mut p = Poem::parse(Path::new(&f.file_name), &f.text);
             if let Some(c) = &f.collection {
+                // The key stays the file's real place, so the store finds it.
                 p.file_name = format!("{c}/{}", p.file_name);
-                p.collection = Some(c.clone());
+                if !in_series {
+                    p.collection = Some(c.clone());
+                }
             }
             modified.insert(p.file_name.clone(), f.modified);
             match f.collection {
+                Some(_) if in_series => {
+                    series_folder = Some(series.clone());
+                    scan.poems.push(p)
+                }
                 Some(c) => folders.entry(c).or_default().push(p),
                 None => scan.poems.push(p),
             }
@@ -257,7 +270,13 @@ impl PoetCore {
             weeks,
             collections,
             modified,
+            series_folder,
         })
+    }
+
+    /// Where a new series poem goes: the series' own subfolder, or None for the top.
+    pub fn series_folder(&self) -> Option<String> {
+        self.series_folder.clone()
     }
 
     /// "tr" or "en", after resolving "auto".
@@ -778,6 +797,39 @@ mod tests {
     }
 
     #[test]
+    fn series_folder() {
+        let series = core_series(&texts());
+        let files = vec![
+            file(
+                "Liman",
+                Some(series.as_str()),
+                "Liman\n\nbir mısra\n\n- Deniz Yalın. 05.10.2026 - 21.30\n",
+            ),
+            file("Dawn", Some("Eski"), "Dawn\n\nQuietly\n"),
+        ];
+        let core = PoetCore::new(files, texts());
+        assert_eq!(core.series_folder(), Some(series.clone()));
+        // Lists hold keys, which keep the folder.
+        let key = format!("{series}/Liman");
+        assert_eq!(core.weeks()[0].poems, vec![key.clone()]);
+        assert_eq!(core.space(None).published, vec![key.clone()]);
+        let liman = core
+            .poems()
+            .into_iter()
+            .find(|p| p.title == "Liman")
+            .unwrap();
+        assert_eq!(liman.key, key);
+        assert_eq!(liman.collection, None);
+        assert_eq!(core.collections(), vec!["Eski".to_string()]);
+    }
+
+    fn core_series(t: &SharedTexts) -> String {
+        shared::profile_from_toml(t.profile.as_deref().unwrap())
+            .unwrap()
+            .series
+    }
+
+    #[test]
     fn library() {
         let files = vec![
             file(
@@ -828,7 +880,7 @@ mod tests {
         let eski = core.space(Some("Eski".into()));
         assert_eq!(
             eski.poems,
-            vec!["Dawn", "Kayıp"]
+            ["Dawn", "Kayıp"]
                 .iter()
                 .map(|n| format!("Eski/{n}"))
                 .collect::<Vec<_>>()

@@ -301,7 +301,8 @@ class PoetViewModel(app: Application) : AndroidViewModel(app) {
         withContext(Dispatchers.IO) {
             val st = store ?: error("No poems folder")
             val title = lines.firstOrNull()?.trim().orEmpty()
-            val folderOf = key?.let { splitKey(it).first } ?: collection
+            val seriesFolder = (_load.value as? Load.Ready)?.core?.seriesFolder()
+            val folderOf = key?.let { splitKey(it).first } ?: collection ?: seriesFolder
             val newKey = when {
                 key == null -> keyOf(folderOf, fileNameFor(title, st.names(folderOf)))
                 isDraft && splitKey(key).second != fileNameFor(title, emptyList()) -> {
