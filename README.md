@@ -78,6 +78,23 @@ another computer or a phone. Folders and other machine settings stay in
 `~/.config/poetautopublish/config.toml`; see
 [config.example.toml](config.example.toml) for every option.
 
+### Android
+
+Download `Poet-….apk` from the newest *Poet* release on
+[Releases](https://github.com/D4shwood/poet_autopublish/releases) and open it
+on the phone; Android asks once to allow installs from your browser.
+
+To get updates like from an app store, use
+[Obtainium](https://github.com/ImranR98/Obtainium): add this repo's address
+and set *Filter release titles by regular expression* to `^Poet`, so it skips
+the desktop releases.
+
+The phone app writes, signs and lists poems with the same rules, and shows the
+PDFs the computer built. It syncs with the computer through a private GitHub
+repo of your poems (see `sync` in [config.example.toml](config.example.toml)),
+using a fine-grained token limited to that repo. Building it yourself:
+[android/README.md](android/README.md).
+
 ## Poem files
 
 A poem is a UTF-8 file with no extension or a `.txt` extension:
@@ -236,8 +253,7 @@ Planned, not built yet; details in [TODO.md](TODO.md).
 - **Poem as an image** — a PNG of one poem page for sharing (square or story).
 - **Writing reminder** — an optional nudge after a few days without a poem.
 - **Page preview** — a text proof inside the terminal (suspended for now).
-- **Windows port** and an **Android app** for writing and reading on the phone.
-- **Phone–computer sync** — poems from either side in one folder, PDFs back on the phone.
+- **Built-in PDF engine on Windows**, so no TeX install is needed.
 
 ## License
 

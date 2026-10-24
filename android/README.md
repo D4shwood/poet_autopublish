@@ -11,9 +11,15 @@ android/
   build-rust.sh  builds the native libraries and Kotlin bindings (Gradle runs it)
 ```
 
-The app reads and writes the poems folder you pick, through Android's folder
-picker. Point it at a synced folder (e.g. Syncthing) to share poems with the
-computer.
+The app keeps its own copy of your poems repo and syncs it with GitHub every
+15 minutes (a fine-grained token, stored encrypted on the phone), or reads and
+writes a folder you pick. The desktop syncs the same repo with git.
+
+Releases: pushing a tag like `android-v0.2.0` builds the signed APK and
+publishes it as a release ([workflow](../.github/workflows/android.yml)). The
+signing key lives in the repo secrets `POET_KEYSTORE_B64` and
+`POET_KEYSTORE_PASSWORD`; every release must use the same key, or phones refuse
+the update.
 
 ## Building
 
@@ -31,10 +37,3 @@ Then:
 ./gradlew assembleRelease  # APK in app/build/outputs/apk/release
 ```
 
-## Pulling desktop changes
-
-The public repo is the `upstream` remote; pushing to it is disabled here.
-
-```sh
-git pull upstream main
-```

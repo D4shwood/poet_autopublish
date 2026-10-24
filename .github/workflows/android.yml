@@ -1,7 +1,7 @@
 name: Android
 
 # Pushing a tag like android-v0.2.0 builds the signed APK and publishes it as a
-# release of this (private) repo, ready to download on the phone. Run by hand
+# release, ready to download on the phone (or through Obtainium). Run by hand
 # it only builds the APK, as an artifact.
 on:
   push:
@@ -45,12 +45,13 @@ jobs:
           POET_KEYSTORE_PASSWORD: ${{ secrets.POET_KEYSTORE_PASSWORD }}
         run: |
           # "android-v0.2.0" → 0.2.0; a run by hand is "dev". The run number keeps
-          # every build's versionCode above the last.
+          # every build's versionCode above the last; +10 stays above the builds
+          # made before the app moved into this repo.
           name="${GITHUB_REF_NAME#android-v}"
           [ "$GITHUB_REF_TYPE" = tag ] || name="dev"
           chmod +x gradlew
           ./gradlew assembleRelease --console=plain \
-            -PversionCode="${{ github.run_number }}" -PversionName="$name"
+            -PversionCode="$(( ${{ github.run_number }} + 10 ))" -PversionName="$name"
           mkdir -p ../dist
           cp app/build/outputs/apk/release/app-release.apk "../dist/Poet-$name.apk"
       - uses: actions/upload-artifact@v4

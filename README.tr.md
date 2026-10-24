@@ -81,6 +81,23 @@ bilgisayara ya da telefona gider. Klasörler ve bu bilgisayara özel ayarlar
 `~/.config/poetautopublish/config.toml` dosyasında kalır; tüm seçenekler için
 [config.example.toml](config.example.toml) dosyasına bak.
 
+### Android
+
+[Releases](https://github.com/D4shwood/poet_autopublish/releases) sayfasındaki
+en yeni *Poet* sürümünden `Poet-….apk` dosyasını indirip telefonda aç; Android
+tarayıcından kurulum yapmaya bir kez izin ister.
+
+Güncellemeleri uygulama mağazası gibi almak için
+[Obtainium](https://github.com/ImranR98/Obtainium) kullan: bu reponun adresini
+ekle ve *Filter release titles by regular expression* alanına `^Poet` yaz;
+böylece masaüstü sürümlerini atlar.
+
+Telefon uygulaması aynı kurallarla şiir yazar, imzalar, listeler ve
+bilgisayarın derlediği PDF'leri gösterir. Bilgisayarla, şiirlerinin durduğu
+özel bir GitHub reposu üzerinden eşitlenir (bkz. [config.example.toml](config.example.toml)
+içindeki *sync*); yalnızca o repoya yetkili bir fine-grained token kullanır.
+Kendin derlemek için: [android/README.md](android/README.md).
+
 ## Şiir dosyaları
 
 Şiir, uzantısız ya da `.txt` uzantılı bir UTF-8 dosyasıdır:
@@ -249,8 +266,7 @@ Planlanan, henüz yapılmamış özellikler; ayrıntılar [TODO.md](TODO.md) dos
 - **Şiiri görsel olarak dışa aktarma**: paylaşmak için tek şiirin PNG sayfası (kare ya da hikâye).
 - **Yazma hatırlatıcısı**: birkaç gün şiir yazılmazsa isteğe bağlı bir dürtme.
 - **Sayfa önizlemesi**: terminal içinde metin provası (şimdilik askıda).
-- **Windows sürümü** ve telefonda yazıp okumak için bir **Android uygulaması**.
-- **Telefon–bilgisayar eşitlemesi**: iki taraftan yazılan şiirler aynı klasörde, PDF'ler telefonda.
+- **Windows'ta dahili PDF motoru**: TeX kurmaya gerek kalmasın.
 
 ## Lisans
 

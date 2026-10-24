@@ -22,18 +22,11 @@
   3. Optional background rebuild at sign-in, with a Task Scheduler task.
   4. PDFs: a TeX engine that needs no separate install (likely Tectonic,
      bundled), with the fonts embedded.
-- **Android app.** A mobile app for writing and reading on the phone: the
-  writing screen, drafts and signing, and the published PDFs. The poem parsing,
-  week grouping and authors logic can be shared as a Rust library; compiling
-  PDFs on the phone may not be practical, so it could show the PDFs built on
-  the computer instead.
-
-## Stage 2
-
-- **Syncing between phone and computer.** Poems written on either side end up
-  in the same poems folder, and the PDFs come back to the phone. To be decided:
-  a synced folder (e.g. Syncthing) versus the app's own sync, and how to handle
-  the same poem edited on both sides.
+- ~~**Android app**~~ (done, in [android/](android/)): writing, drafts,
+  signing, lists, stats and the PDFs the computer built, on the shared Rust core.
+- ~~**Syncing between phone and computer**~~ (done): a private GitHub repo of
+  the poems; the computer syncs with git, the phone through the GitHub API. A
+  poem changed on both sides keeps both versions.
 
 ## Ideas to explore
 
