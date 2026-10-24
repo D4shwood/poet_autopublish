@@ -9,6 +9,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
@@ -117,17 +118,31 @@ fun TermBox(
 /** ` poetautopublish — {space}` with a status on the right. */
 @Composable
 fun Header(space: String, status: String) {
-    Row(Modifier.fillMaxWidth().padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
-        Txt(
-            line(
-                " poetautopublish" to span(T.MUTED),
-                " — " to span(T.FAINT),
-                space to span(T.ACCENT, bold = true),
-            ),
-            Modifier.weight(1f),
-            maxLines = 1,
-        )
-        Txt("  $status ", color = T.MUTED, maxLines = 1)
+    val cell = cellWidth()
+    BoxWithConstraints(Modifier.fillMaxWidth().padding(vertical = 2.dp)) {
+        val cells = (maxWidth / cell).toInt()
+        // On a narrow screen the app's name goes first, then the status keeps
+        // only its mark (● ◐ ○); the space's name always shows.
+        val full = " poetautopublish — ".length + space.length + status.length + 3
+        val showApp = full <= cells
+        val shortStatus = !showApp && space.length + status.length + 4 > cells
+        val right = if (shortStatus) status.take(1) else status
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Txt(
+                if (showApp) {
+                    line(
+                        " poetautopublish" to span(T.MUTED),
+                        " — " to span(T.FAINT),
+                        space to span(T.ACCENT, bold = true),
+                    )
+                } else {
+                    line(" $space" to span(T.ACCENT, bold = true))
+                },
+                Modifier.weight(1f),
+                maxLines = 1,
+            )
+            Txt("  $right ", color = T.MUTED, maxLines = 1)
+        }
     }
 }
 
