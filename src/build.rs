@@ -184,7 +184,7 @@ pub struct Library {
 }
 
 pub fn library(cfg: &Config, poems_dir: &Path) -> Result<Library> {
-    let mut scan = poem::scan(poems_dir)?;
+    let mut scan = poem::scan(poems_dir, &cfg.series)?;
     let lang = lang::resolve(&cfg.lang, &scan.poems);
     let authors = Authors::load(poems_dir, &cfg.author);
     scan.sign_undated(&authors);

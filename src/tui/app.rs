@@ -1065,7 +1065,13 @@ impl App {
             KeyCode::Esc => return Mode::Main,
             KeyCode::Enter => {
                 if let Some(h) = hits.get(sel) {
-                    let path = self.cfg.poems_dir().join(&h.file_name);
+                    let path = self
+                        .lib
+                        .scan
+                        .all_poems()
+                        .find(|p| p.file_name == h.file_name)
+                        .map(|p| p.path.clone())
+                        .unwrap_or_else(|| self.cfg.poems_dir().join(&h.file_name));
                     self.open_poem(path);
                     return std::mem::replace(&mut self.mode, Mode::Main);
                 }
