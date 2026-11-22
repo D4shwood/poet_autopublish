@@ -51,10 +51,15 @@ fun tag(ui: Ui, p: PoemInfo): String = when (val s = p.status) {
     else -> "${p.lines} ${ui.t("lines")}"
 }
 
-/** Opens a poem in the writer; a long press asks to delete it. */
+/** Opens a poem in the writer; a long press offers to copy or delete it. */
 fun poemActions(ui: Ui, p: PoemInfo) = Pair(
     { ui.go(Screen.Writer(p.key, p.collection)) },
-    { ui.ask(Prompt.Confirm(ui.s("confirm_delete")) { ui.vm.delete(p.key, p.title) }) },
+    {
+        ui.ask(Prompt.Choice(p.title, listOf(
+            Key(ui.s("duplicate")) { ui.vm.duplicate(p.key) { ui.go(Screen.Writer(it, p.collection)) } },
+            Key(ui.s("delete")) { ui.ask(Prompt.Confirm(ui.s("confirm_delete")) { ui.vm.delete(p.key, p.title) }) },
+        )))
+    },
 )
 
 @Composable

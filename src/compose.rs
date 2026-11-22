@@ -36,6 +36,21 @@ pub fn open(raw: &str) -> Draft {
     Draft { lines, is_draft }
 }
 
+/// A copy of a poem to keep working on: the same title and lines, unsigned and
+/// tagged as a draft, so it is never published twice. `signed` says whether the
+/// last non-blank line is a signature (the poem's own reading, which also knows
+/// undated signatures).
+pub fn duplicate(raw: &str, signed: bool) -> String {
+    let mut lines = open(raw).lines;
+    if signed
+        && let Some(i) = lines.iter().rposition(|l| !l.trim().is_empty())
+        && i > 0
+    {
+        lines.truncate(i);
+    }
+    content(&lines, true)
+}
+
 /// The file text: the draft tag goes right after the title.
 pub fn content(lines: &[String], is_draft: bool) -> String {
     let mut lines = lines.to_vec();
@@ -166,6 +181,14 @@ mod tests {
         assert_eq!(d.lines, lines(&["Liman", "", "bir mısra"]));
         assert_eq!(content(&d.lines, true), "Liman\n#taslak\n\nbir mısra\n");
         assert_eq!(content(&d.lines, false), "Liman\n\nbir mısra\n");
+    }
+
+    #[test]
+    fn duplicating() {
+        let signed = "Liman\n\nbir mısra\n\n- Deniz Yalın. 05.10.2026 - 21.30\n";
+        assert_eq!(duplicate(signed, true), "Liman\n#taslak\n\nbir mısra\n");
+        let draft = "Liman\n#taslak\n\nyarım\n";
+        assert_eq!(duplicate(draft, false), draft);
     }
 
     #[test]

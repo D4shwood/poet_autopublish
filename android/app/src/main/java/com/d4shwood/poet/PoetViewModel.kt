@@ -274,6 +274,26 @@ class PoetViewModel(app: Application) : AndroidViewModel(app) {
         s("deleted").format(title)
     }
 
+    /** Copies a poem as an unsigned draft next to it, then hands over the new key. */
+    fun duplicate(key: String, opened: (String) -> Unit) {
+        val st = store ?: return
+        val core = (_load.value as? Load.Ready)?.core ?: return
+        viewModelScope.launch {
+            val made = withContext(Dispatchers.IO) {
+                runCatching {
+                    val text = core.duplicateText(key) ?: error("?")
+                    val (folder, name) = splitKey(key)
+                    val title = text.lineSequence().firstOrNull()?.trim().orEmpty().ifEmpty { name }
+                    keyOf(folder, fileNameFor(title, st.names(folder))).also { st.write(it, text) }
+                }
+            }
+            made.onFailure { say(it.message ?: it.toString()) }
+            refresh()
+            syncSoon()
+            made.onSuccess(opened)
+        }
+    }
+
     private fun io(work: (PoemStore) -> String?) {
         val st = store ?: return
         viewModelScope.launch {

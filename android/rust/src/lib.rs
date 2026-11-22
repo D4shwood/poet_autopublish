@@ -477,6 +477,12 @@ impl PoetCore {
     }
 
     /// A UI string in the library's language, from the same table as the terminal.
+    /// The text of an unsigned draft copy of the poem, or None for an unknown key.
+    pub fn duplicate_text(&self, key: String) -> Option<String> {
+        let p = self.scan.all_poems().find(|p| p.file_name == key)?;
+        Some(compose::duplicate(&p.raw, p.signature.is_some()))
+    }
+
     pub fn t(&self, key: String) -> String {
         self.lang.t(&key).to_string()
     }

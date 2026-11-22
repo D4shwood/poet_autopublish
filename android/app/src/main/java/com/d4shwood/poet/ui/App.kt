@@ -64,6 +64,8 @@ sealed interface Item {
 sealed interface Prompt {
     data class Text(val label: String, val initial: String, val onDone: (String) -> Unit) : Prompt
     data class Confirm(val question: String, val onYes: () -> Unit) : Prompt
+    /** A question answered by one of several keys. */
+    data class Choice(val question: String, val keys: List<Key>) : Prompt
 }
 
 sealed interface Screen {
@@ -246,6 +248,10 @@ fun PromptLine(ui: Ui, prompt: Prompt, close: () -> Unit) {
         is Prompt.Confirm -> Column(Modifier.padding(vertical = 4.dp)) {
             Txt(" ${prompt.question}", color = T.ACCENT, bold = true)
             FooterKeys(listOf(Key(ui.s("yes")) { close(); prompt.onYes() }, Key(ui.s("no")) { close() }))
+        }
+        is Prompt.Choice -> Column(Modifier.padding(vertical = 4.dp)) {
+            Txt(" ${prompt.question}", color = T.ACCENT, bold = true)
+            FooterKeys(prompt.keys.map { k -> Key(k.label) { close(); k.onClick() } } + Key(ui.s("cancel")) { close() })
         }
         is Prompt.Text -> {
             var text by remember(prompt) { mutableStateOf(prompt.initial) }

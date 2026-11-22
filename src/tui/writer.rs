@@ -383,7 +383,7 @@ fn history_key(cfg: &Config, path: &Path) -> String {
 
 pub use crate::compose::sanitize;
 
-fn unique(dir: &Path, name: &str, current: Option<&PathBuf>) -> PathBuf {
+pub fn unique(dir: &Path, name: &str, current: Option<&PathBuf>) -> PathBuf {
     dir.join(compose::unique_name(name, |n| {
         let p = dir.join(n);
         p.exists() && Some(&p) != current

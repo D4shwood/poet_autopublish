@@ -15,7 +15,7 @@ use anyhow::Result;
 use chrono::NaiveDateTime;
 use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -540,6 +540,29 @@ impl App {
         }
     }
 
+    /// Copies the selected poem as an unsigned draft next to it, "Title (2)",
+    /// and opens the copy in the writer.
+    fn duplicate_poem(&mut self) {
+        let Some(p) = self.selected_poem() else {
+            return;
+        };
+        let text = crate::compose::duplicate(&p.raw, p.signature.is_some());
+        let dir = p
+            .path
+            .parent()
+            .map(Path::to_path_buf)
+            .unwrap_or_else(|| self.cfg.series_dir());
+        let path = writer::unique(&dir, &writer::sanitize(&p.title), None);
+        match fs::write(&path, text) {
+            Ok(()) => {
+                build::log(&format!("duplicated: {}", path.display()));
+                self.refresh();
+                self.open_poem(path);
+            }
+            Err(e) => self.say(format!("{e:#}")),
+        }
+    }
+
     fn open_pdf(&mut self) {
         match self.selected_pdf() {
             Some((p, _)) => {
@@ -975,6 +998,7 @@ impl App {
                 }
             }
             KeyCode::Char('o') => self.open_pdf(),
+            KeyCode::Char('c') => self.duplicate_poem(),
             #[cfg(feature = "preview")]
             KeyCode::Char('p') => self.open_preview(),
             KeyCode::Char('b') => self.start_build(false),

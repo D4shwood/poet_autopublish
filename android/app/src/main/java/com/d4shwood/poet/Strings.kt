@@ -66,6 +66,8 @@ object S {
 
         "confirm_delete" to ("Bu şiir silinsin mi? (e/h)" to "Delete this poem? (y/n)"),
         "deleted" to ("silindi: %s" to "deleted: %s"),
+        "duplicate" to ("c kopyala" to "c copy"),
+        "delete" to ("D sil" to "D delete"),
         "renamed" to ("adlandırıldı: %s" to "renamed: %s"),
         "reading" to ("şiirler okunuyor…" to "reading poems…"),
         "read_failed" to ("Şiirler okunamadı: %s" to "Couldn't read the poems: %s"),
